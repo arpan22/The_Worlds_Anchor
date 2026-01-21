@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Globe from "react-globe.gl";
+import * as THREE from "three";
 
 export default function App() {
   const [countries, setCountries] = useState([]);
@@ -20,17 +21,22 @@ export default function App() {
   };
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#f0f0f0" }}>
+    <div style={{
+      width: "100vw",
+      height: "100vh",
+      background: "#000000"
+    }}>
       <Globe
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-day.jpg"
-        backgroundColor="#f0f0f0"
+        globeMaterial={new THREE.MeshBasicMaterial({ color: "#ffffff" })}
+        globeImageUrl=""
+        backgroundImageUrl=""
 
         polygonsData={countries}
-        polygonCapColor={(d) => d === hoveredCountry ? "rgba(255, 100, 0, 0.3)" : "rgba(0, 0, 0, 0)"}
-        polygonSideColor={(d) => d === hoveredCountry ? "rgba(255, 100, 0, 0.5)" : "rgba(0, 0, 0, 0)"}
+        polygonCapColor={(d) => d === hoveredCountry ? "#ff6600" : "#3b82f6"}
+        polygonSideColor={(d) => d === hoveredCountry ? "#ff8833" : "#2563eb"}
         polygonStrokeColor={(d) => d === hoveredCountry ? "#ff6600" : "#000000"}
         polygonStrokeWidth={(d) => d === hoveredCountry ? 8 : 5}
-        polygonAltitude={(d) => d === hoveredCountry ? 0.15 : 0.001}
+        polygonAltitude={(d) => d === hoveredCountry ? 0.04 : 0.01}
         onPolygonHover={handleCountryHover}
         polygonsTransitionDuration={200}
         polygonLabel={(d) => `<b>${d.properties.name}</b>`}
