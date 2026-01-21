@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import Globe from "react-globe.gl";
-import { feature } from "topojson-client";
-import * as THREE from "three";
-
-const CLEMSON = { lat: 34.6834, lng: -82.8374, name: "Clemson" };
 
 export default function App() {
   const [countries, setCountries] = useState([]);
-  const [darkMode, setDarkMode] = useState(true);
+  const [hoveredCountry, setHoveredCountry] = useState(null);
 
   useEffect(() => {
     fetch("https://unpkg.com/world-atlas@2/countries-110m.json")
@@ -19,40 +15,25 @@ export default function App() {
       });
   }, []);
 
-  const bg = darkMode ? "black" : "white";
-  const globeTex = darkMode ? "/black_75.png" : "/white_75.png";
+  const handleCountryHover = (polygon) => {
+    setHoveredCountry(polygon);
+  };
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: bg }}>
-      <button
-        onClick={() => setDarkMode((v) => !v)}
-        style={{
-          position: "fixed",
-          zIndex: 10,
-          top: 12,
-          left: 12
-        }}
-      >
-        {darkMode ? "Light mode" : "Dark mode"}
-      </button>
-
+    <div style={{ width: "100vw", height: "100vh", background: "#f0f0f0" }}>
       <Globe
-        globeMaterial={new THREE.MeshBasicMaterial({ map: null, color: "#0000007a" })}
-        backgroundColor={bg}
-        showAtmosphere={true}
-        globeImageUrl={globeTex}
+        globeImageUrl="//unpkg.com/three-globe/example/img/earth-day.jpg"
+        backgroundColor="#f0f0f0"
+
         polygonsData={countries}
-        polygonCapColor={() => "#1e5effcf"}
-        polygonSideColor={() => "#1e5eff"}
-        polygonStrokeColor={() => "rgba(0,0,0,0)"}
-        polygonAltitude={0.01}
-        pointsData={[CLEMSON]}
-        pointLat="lat"
-        pointLng="lng"
-        pointColor={() => "#ff7a00"}
-        pointRadius={0.4}
-        pointAltitude={0.04}
-        pointLabel="name"
+        polygonCapColor={(d) => d === hoveredCountry ? "rgba(255, 100, 0, 0.3)" : "rgba(0, 0, 0, 0)"}
+        polygonSideColor={(d) => d === hoveredCountry ? "rgba(255, 100, 0, 0.5)" : "rgba(0, 0, 0, 0)"}
+        polygonStrokeColor={(d) => d === hoveredCountry ? "#ff6600" : "#000000"}
+        polygonStrokeWidth={(d) => d === hoveredCountry ? 8 : 5}
+        polygonAltitude={(d) => d === hoveredCountry ? 0.15 : 0.001}
+        onPolygonHover={handleCountryHover}
+        polygonsTransitionDuration={200}
+        polygonLabel={(d) => `<b>${d.properties.name}</b>`}
       />
     </div>
   );
