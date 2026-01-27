@@ -1,14 +1,26 @@
-import { useState } from "react";
 import GlobeView from "./components/GlobeView";
-import Topbar from "./components/topbar";
+import Topbar from "./components/Topbar";
+import { useGlobeCountries } from "./hooks/useGlobeCountries";
 
 export default function App() {
-  const [q, setQ] = useState("");
+  const globe = useGlobeCountries();
 
   return (
     <>
-      <GlobeView />
-      <Topbar value={q} onChange={setQ} />
+      <GlobeView
+        ref={globe.globeRef}
+        countries={globe.countries}
+        selectedCountry={globe.selectedCountry}
+      />
+
+      <Topbar
+        value={globe.searchQuery}
+        onChange={globe.setSearchQuery}
+        results={globe.filteredCountries}
+        isOpen={globe.isDropdownOpen}
+        setIsOpen={globe.setIsDropdownOpen}
+        onSelectCountry={globe.handleSelectCountry}
+      />
     </>
   );
 }
