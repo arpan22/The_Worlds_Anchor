@@ -2,13 +2,13 @@
 
 ```text
 src/
-  App.jsx                  # App composition / wiring (GlobeView + Topbar)
-  hooks/
-    useGlobeCountries.js   # Shared state + country fetching + selection logic
-  components/
-    GlobeView.jsx          # react-globe.gl scene + hover/selected rendering
-    Topbar.jsx             # Search input + dropdown results
-    Topbar.css             # Topbar + dropdown styling
+├── App.jsx                  # App composition / wiring (GlobeView + Topbar)
+├── hooks/                   # Custom hooks: reusable stateful logic (no UI)
+│   └── useGlobeCountries.js  # Shared state + country fetching + selection logic
+└── components/              # React components: reusable UI building blocks
+    ├── GlobeView.jsx         # react-globe.gl scene + hover/selected rendering
+    ├── Topbar.jsx            # Search input + dropdown results
+    └── Topbar.css            # Topbar + dropdown styling
 ```
 
 Notes
