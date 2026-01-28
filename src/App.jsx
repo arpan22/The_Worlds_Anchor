@@ -1,11 +1,15 @@
 import GlobeView from "./components/GlobeView";
 import Topbar from "./components/Topbar";
 import { useGlobeCountries } from "./hooks/useGlobeCountries";
+import { useCountryNews } from "./hooks/useCountryNews";
 import CountryPanel from "./components/CountryPanel";
 
 
 export default function App() {
   const globe = useGlobeCountries();
+
+  // Fetch news when a country is selected
+  const news = useCountryNews(globe.selectedCountry);
 
   return (
     <>
@@ -29,6 +33,10 @@ export default function App() {
       <CountryPanel
         country={globe.selectedCountry}
         onClose={globe.clearSelection}
+        articles={news.articles}
+        isLoading={news.isLoading}
+        error={news.error}
+        onRefresh={news.refresh}
       />
     </>
   );
