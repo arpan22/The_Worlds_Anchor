@@ -32,7 +32,7 @@ function countryToBorderPaths(countryFeature) {
 }
 
 const GlobeView = forwardRef(function GlobeView(
-  { countries, selectedCountry },
+  { countries, selectedCountry, onSelectCountry, onClearSelection},
   globeRef
 ) {
   const [hoveredCountry, setHoveredCountry] = useState(null);
@@ -63,6 +63,13 @@ const GlobeView = forwardRef(function GlobeView(
         polygonStrokeColor={() => null} // disable built-in stroke
         polygonAltitude={(d) => (isHighlighted(d) ? 0.05 : 0.01)}
         onPolygonHover={setHoveredCountry}
+        onPolygonClick={(country, event) => {
+          onSelectCountry?.(country);
+          event?.stopPropagation?.();
+        }}
+        onGlobeClick={() => {
+          onClearSelection?.();
+        }}
         polygonsTransitionDuration={200}
         polygonLabel={(d) => `<b>${d.properties.name}</b>`}
 

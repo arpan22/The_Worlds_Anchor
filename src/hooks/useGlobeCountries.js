@@ -69,6 +69,13 @@ export function useGlobeCountries() {
     }
   }, []);
 
+  // Handles deselection
+  const clearSelection = useCallback(() => {
+    setSelectedCountry(null);
+    setSearchQuery("");
+  }, []);
+
+
   return {
     countries,
     selectedCountry,
@@ -84,5 +91,6 @@ export function useGlobeCountries() {
 
     globeRef,
     handleSelectCountry,
+    clearSelection,
   };
 }

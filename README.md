@@ -18,3 +18,10 @@ Notes
     GlobeView renders polygons/borders and rotates to the selected country.
 
     Shared state lives in useGlobeCountries and is used by both components.
+
+Main Features
+
+    [X] Globe Viewport
+    [X] Country Selection
+    [X] Country Search Bar
+    [ ] Country Information Panel
