@@ -58,8 +58,8 @@ const GlobeView = forwardRef(function GlobeView(
 
         // Filled countries
         polygonsData={countries}
-        polygonCapColor={(d) => (isHighlighted(d) ? "#2a788b" : "#164753")}
-        polygonSideColor={(d) => (isHighlighted(d) ? "#2a788b" : "#0f323b")}
+        polygonCapColor={(d) => (isHighlighted(d) ? "#f07f16" : "#164753")}
+        polygonSideColor={(d) => (isHighlighted(d) ? "#b86c25" : "#0f323b")}
         polygonStrokeColor={() => null} // disable built-in stroke
         polygonAltitude={(d) => (isHighlighted(d) ? 0.05 : 0.01)}
         onPolygonHover={setHoveredCountry}
