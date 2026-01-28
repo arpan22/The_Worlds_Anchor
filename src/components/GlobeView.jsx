@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import Globe from "react-globe.gl";
 import * as THREE from "three";
 
@@ -46,6 +46,25 @@ const GlobeView = forwardRef(function GlobeView(
     return countries.flatMap(countryToBorderPaths);
   }, [countries]);
 
+  // Get color based on state: selected (orange) takes priority over hover (cyan)
+  const getCapColor = (d) => {
+    if (d === selectedCountry) return "#f07f16"; // Orange for selected
+    if (d === hoveredCountry) return "#2a788b";  // Cyan for hover
+    return "#164753";                             // Default
+  };
+
+  const getSideColor = (d) => {
+    if (d === selectedCountry) return "#b86c25"; // Dark orange for selected
+    if (d === hoveredCountry) return "#1e5a6a";  // Dark cyan for hover
+    return "#0f323b";                             // Default
+  };
+
+  const getBorderColor = (d) => {
+    if (d === selectedCountry) return "#f59542"; // Light orange for selected
+    if (d === hoveredCountry) return "#206475";  // Teal for hover
+    return "#a8a8a8";                             // Default gray
+  };
+
   const isHighlighted = (d) => d === hoveredCountry || d === selectedCountry;
 
   return (
@@ -58,8 +77,8 @@ const GlobeView = forwardRef(function GlobeView(
 
         // Filled countries
         polygonsData={countries}
-        polygonCapColor={(d) => (isHighlighted(d) ? "#f07f16" : "#164753")}
-        polygonSideColor={(d) => (isHighlighted(d) ? "#b86c25" : "#0f323b")}
+        polygonCapColor={getCapColor}
+        polygonSideColor={getSideColor}
         polygonStrokeColor={() => null} // disable built-in stroke
         polygonAltitude={(d) => (isHighlighted(d) ? 0.05 : 0.01)}
         onPolygonHover={setHoveredCountry}
@@ -78,7 +97,7 @@ const GlobeView = forwardRef(function GlobeView(
         pathPoints={(p) => p.points} // points are {lat, lng} objects
         pathPointLat={(pt) => pt.lat} // override defaults
         pathPointLng={(pt) => pt.lng} // override defaults
-        pathColor={(p) => (isHighlighted(p.country) ? "#206475" : "#a8a8a8")}
+        pathColor={(p) => getBorderColor(p.country)}
         pathStroke={(p) => (isHighlighted(p.country) ? 2.5 : 1.0)} // angular degrees
         pathPointAlt={0.012} // lift borders slightly to reduce z-fighting
         pathsTransitionDuration={200}
