@@ -1,4 +1,17 @@
-html, body, #root {
-  height: 100%;
-  margin: 0;
+.layout {
+  position: fixed;
+  inset: 0;
+  display: flex;
+}
+
+.layout__globe {
+  flex: 1 1 auto;   
+  min-width: 0;     
+  height: 100vh;
+}
+
+.layout__panel {
+  width: 50vw; /* right half */
+  height: 100vh;
+  background: rgba(10, 15, 30, 0.95);
 }

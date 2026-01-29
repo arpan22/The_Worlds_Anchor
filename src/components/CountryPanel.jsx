@@ -40,6 +40,7 @@ function ArticleCard({ article, isTrending = false }) {
 
 export default function CountryPanel({
   country,
+  countrySummary = null,
   onClose,
   articles = [],
   isLoading = false,
@@ -64,6 +65,16 @@ export default function CountryPanel({
       </header>
 
       <div className="panel__body">
+        {/* Country summary widget */}
+        {countrySummary && (
+          <section className="panel__section panel__section--summary">
+            <h3 className="panel__section-title">About</h3>
+            <div className="panel__widget panel__widget--summary">
+              <p className="panel__summary-text">{countrySummary}</p>
+            </div>
+          </section>
+        )}
+
         {/* Loading State */}
         {isLoading && (
           <div className="panel__loading">

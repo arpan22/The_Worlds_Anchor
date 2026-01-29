@@ -32,7 +32,7 @@ function countryToBorderPaths(countryFeature) {
 }
 
 const GlobeView = forwardRef(function GlobeView(
-  { countries, selectedCountry, onSelectCountry, onClearSelection},
+  { countries, selectedCountry, onSelectCountry, onClearSelection, width, height },
   globeRef
 ) {
   const [hoveredCountry, setHoveredCountry] = useState(null);
@@ -68,9 +68,11 @@ const GlobeView = forwardRef(function GlobeView(
   const isHighlighted = (d) => d === hoveredCountry || d === selectedCountry;
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#000000" }}>
+    <div style={{ width: "100%", height: "100%", background: "#000000" }}>
       <Globe
         ref={globeRef}
+        width={width}
+        height={height}
         globeMaterial={globeMat}
         globeImageUrl=""
         backgroundImageUrl=""

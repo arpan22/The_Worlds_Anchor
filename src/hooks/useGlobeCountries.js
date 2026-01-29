@@ -65,7 +65,7 @@ export function useGlobeCountries() {
     // Rotate globe to the selected country
     if (globeRef.current) {
       const { lat, lng } = getCountryCentroid(country);
-      globeRef.current.pointOfView({ lat, lng, altitude: 2 }, 1000);
+      globeRef.current.pointOfView({ lat, lng, altitude: 1.5 }, 1000);
     }
   }, []);
 
