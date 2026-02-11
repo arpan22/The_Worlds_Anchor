@@ -64,6 +64,53 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* Tab bar */
+.panel__tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(42, 120, 139, 0.3);
+  flex-shrink: 0;
+}
+
+.panel__tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.panel__tab:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.panel__tab--active {
+  color: #fff;
+  border-bottom-color: #2a788b;
+}
+
+.panel__tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #76b900;
+  animation: tab-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes tab-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .panel__body {
   flex: 1;
   overflow-y: auto;

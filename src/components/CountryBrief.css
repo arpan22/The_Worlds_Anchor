@@ -1,0 +1,177 @@
+/* CountryBrief.css */
+
+.brief {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(42, 120, 139, 0.08);
+  border: 1px solid rgba(42, 120, 139, 0.25);
+  border-radius: 10px;
+}
+
+.brief--building {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.brief__loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+}
+
+.brief__pulse {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #76b900; /* NVIDIA green */
+  animation: brief-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes brief-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.brief--error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-color: rgba(240, 127, 22, 0.3);
+  background: rgba(240, 127, 22, 0.08);
+}
+
+.brief__error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(240, 127, 22, 0.3);
+  color: #f07f16;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.brief__error-text {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+}
+
+/* Heading */
+.brief__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.brief__nvidia-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #76b900 0%, #4a8000 100%);
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Sections */
+.brief__section {
+  margin-bottom: 14px;
+}
+
+.brief__section:last-child {
+  margin-bottom: 0;
+}
+
+.brief__subheading {
+  margin: 0 0 8px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Bullets */
+.brief__bullets {
+  margin: 0;
+  padding: 0 0 0 18px;
+  list-style: none;
+}
+
+.brief__bullet {
+  position: relative;
+  padding: 3px 0 3px 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.brief__bullet::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 10px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #76b900;
+}
+
+/* Topics */
+.brief__topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.brief__topic {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(42, 120, 139, 0.2);
+  border-radius: 6px;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 140px;
+}
+
+.brief__topic-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2a788b;
+}
+
+.brief__topic-desc {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+/* Narrative */
+.brief__narrative p {
+  margin: 0 0 8px 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.brief__narrative p:last-child {
+  margin-bottom: 0;
+}
