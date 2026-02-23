@@ -2,13 +2,14 @@
  * Country Code Mapping Utility
  *
  * Maps country names (from world-atlas TopoJSON) to ISO 3166-1 alpha-2 codes
- * required by NewsAPI's top-headlines endpoint.
+ * required by NewsAPI's top-headlines endpoint and WorldNewsAPI.
  *
  * Note: NewsAPI only supports a subset of countries for top-headlines.
- * Supported countries: ae, ar, at, au, be, bg, br, ca, ch, cn, co, cu, cz,
+ * WorldNewsAPI supports 200+ countries for top news.
+ * Supported countries include: ae, ar, at, au, be, bg, br, ca, ch, cn, co, cu, cz,
  * de, eg, fr, gb, gr, hk, hu, id, ie, il, in, it, jp, kr, lt, lv, ma, mx,
  * my, ng, nl, no, nz, ph, pl, pt, ro, rs, ru, sa, se, sg, si, sk, th, tr,
- * tw, ua, us, ve, za
+ * tw, ua, us, ve, za, and many more via WorldNewsAPI
  */
 
 // Comprehensive mapping of country names to ISO codes
@@ -179,13 +180,26 @@ const COUNTRY_NAME_TO_CODE = {
   'Zambia': 'zm',
 };
 
-// Countries supported by NewsAPI top-headlines endpoint
+// Countries supported by NewsAPI top-headlines endpoint and WorldNewsAPI
 const NEWSAPI_SUPPORTED_COUNTRIES = new Set([
+  // NewsAPI supported countries (higher quality)
   'ae', 'ar', 'at', 'au', 'be', 'bg', 'br', 'ca', 'ch', 'cn', 'co', 'cu', 'cz',
   'de', 'eg', 'fr', 'gb', 'gr', 'hk', 'hu', 'id', 'ie', 'il', 'in', 'it', 'jp',
   'kr', 'lt', 'lv', 'ma', 'mx', 'my', 'ng', 'nl', 'no', 'nz', 'ph', 'pl', 'pt',
   'ro', 'rs', 'ru', 'sa', 'se', 'sg', 'si', 'sk', 'th', 'tr', 'tw', 'ua', 'us',
-  've', 'za'
+  've', 'za',
+  // Additional WorldNewsAPI supported countries
+  'ad', 'af', 'ai', 'al', 'am', 'ao', 'aw', 'az', 'ba', 'bb', 'bf', 'bh', 'bi',
+  'bj', 'bm', 'bn', 'bo', 'bs', 'bw', 'by', 'bz', 'cf', 'cg', 'cl', 'cm', 'cr',
+  'cv', 'cy', 'dj', 'dk', 'do', 'dz', 'ec', 'ee', 'er', 'es', 'et', 'eu', 'fi',
+  'fj', 'fo', 'ga', 'ge', 'gf', 'gg', 'gh', 'gm', 'gn', 'gt', 'gw', 'gy', 'hn',
+  'hr', 'ht', 'im', 'io', 'iq', 'ir', 'is', 'jm', 'jo', 'ke', 'kg', 'kh', 'kp',
+  'kw', 'ky', 'kz', 'la', 'lb', 'lk', 'lr', 'lu', 'ly', 'mc', 'md', 'me', 'mg',
+  'mk', 'mm', 'mn', 'mo', 'mp', 'mr', 'mt', 'mw', 'mz', 'na', 'ne', 'ni', 'np',
+  'pa', 'pe', 'pf', 'pg', 'pk', 'pr', 'ps', 'py', 'qa', 're', 'rw', 'sb', 'sd',
+  'sl', 'sm', 'sn', 'so', 'sr', 'ss', 'st', 'sv', 'sz', 'td', 'tg', 'tj', 'tl',
+  'tm', 'tn', 'tt', 'tv', 'tz', 'ug', 'uy', 'uz', 'va', 'vc', 'vi', 'vn', 'vu',
+  'xk', 'ye', 'yt', 'zm', 'zw'
 ]);
 
 /**
@@ -220,10 +234,10 @@ export function getCountryCode(countryName) {
 }
 
 /**
- * Checks if a country is supported by NewsAPI's top-headlines endpoint
+ * Checks if a country is supported by NewsAPI's top-headlines endpoint or WorldNewsAPI
  *
  * @param {string} countryCode - ISO 3166-1 alpha-2 country code
- * @returns {boolean} True if supported
+ * @returns {boolean} True if supported by either API
  */
 export function isNewsApiSupported(countryCode) {
   if (!countryCode) return false;
@@ -231,7 +245,7 @@ export function isNewsApiSupported(countryCode) {
 }
 
 /**
- * Gets country info including code and NewsAPI support status
+ * Gets country info including code and API support status
  *
  * @param {string} countryName - Full country name
  * @returns {{code: string|null, name: string, supported: boolean}}
@@ -247,7 +261,7 @@ export function getCountryInfo(countryName) {
 
 /**
  * Gets all supported country names
- * @returns {string[]} Array of country names supported by NewsAPI
+ * @returns {string[]} Array of country names supported by NewsAPI or WorldNewsAPI
  */
 export function getSupportedCountries() {
   return Object.entries(COUNTRY_NAME_TO_CODE)
