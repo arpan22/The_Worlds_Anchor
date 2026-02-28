@@ -5,7 +5,6 @@
  *   - GDELT events fetching (country news via GDELT)
  *   - Country session creation (triggers Nemotron brief + RAG)
  *   - Session status polling
- *   - RAG-grounded chat
  *   - Graph and timeline generation
  *
  * In development, Vite proxies /api to the backend server (localhost:3001).
@@ -70,19 +69,6 @@ export async function createCountrySession(countryCode, countryName) {
  */
 export async function getSessionStatus(sessionId) {
   return apiFetch(`/country-session/${sessionId}/status`);
-}
-
-/**
- * Send a chat message within a session.
- * POST /api/country-session/:sessionId/chat
- *
- * Returns: { reply, sources, sourceType }
- */
-export async function sendChatMessage(sessionId, message, settings = {}) {
-  return apiFetch(`/country-session/${sessionId}/chat`, {
-    method: 'POST',
-    body: JSON.stringify({ message, settings }),
-  });
 }
 
 /**

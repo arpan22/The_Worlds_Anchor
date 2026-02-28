@@ -5,42 +5,40 @@ import { useGlobeCountries } from "./hooks/useGlobeCountries";
 import { useCountryEvents } from "./hooks/useCountryEvents";
 import { useCountrySession } from "./hooks/useCountrySession";
 import CountryPanel from "./components/CountryPanel";
-import SettingsPanel from "./components/SettingsPanel";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { fetchCountrySummary } from "./services/CountrySummary";
 
-const DEFAULT_SETTINGS = {
-  geminiEnabled: true,
-  geminiMaxOutputTokens: 1000,
-  nemotronMaxContextTokens: 4000,
-  cacheDurationMinutes: 10,
-};
+function buildNewsBriefing(country, brief) {
+  if (!brief) return '';
 
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem('globe_settings');
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch { /* ignore */ }
-  return { ...DEFAULT_SETTINGS };
+  const countryName = country?.properties?.name || 'Selected country';
+  const lines = [`Country: ${countryName}`];
+
+  if (Array.isArray(brief.bullets) && brief.bullets.length > 0) {
+    brief.bullets.forEach((bullet, index) => {
+      lines.push(`[${index + 1}] ${bullet}`);
+    });
+  }
+
+  if (brief.narrative) {
+    lines.push(`Summary: ${brief.narrative}`);
+  }
+
+  if (Array.isArray(brief.topics) && brief.topics.length > 0) {
+    brief.topics.forEach((topic, index) => {
+      lines.push(`[T${index + 1}] ${topic.name}: ${topic.description}`);
+    });
+  }
+
+  return lines.join('\n').slice(0, 4000);
 }
-
 
 export default function App() {
   const globe = useGlobeCountries();
   const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'all' });
   const events = useCountryEvents(globe.selectedCountry, eventFilters);
-
-  // Settings state — persisted in localStorage
-  const [settings, setSettings] = useState(loadSettings);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const handleSettingsChange = useCallback((next) => {
-    setSettings(next);
-    try { localStorage.setItem('globe_settings', JSON.stringify(next)); } catch { /* ignore */ }
-  }, []);
-
-  const session = useCountrySession(globe.selectedCountry, settings);
+  const session = useCountrySession(globe.selectedCountry);
 
   const panelOpen = Boolean(globe.selectedCountry);
 
@@ -49,6 +47,7 @@ export default function App() {
 
   const [countrySummary, setCountrySummary] = useState(null);
   const [summaryError, setSummaryError] = useState(null);
+  const newsBriefing = buildNewsBriefing(globe.selectedCountry, session.brief);
 
   useEffect(() => {
     window.dispatchEvent(new Event("resize"));
@@ -117,9 +116,7 @@ export default function App() {
               sessionStatus={session.sessionStatus}
               brief={session.brief}
               sessionError={session.error}
-              chatMessages={session.messages}
-              isChatSending={session.isSending}
-              onChatSend={session.sendMessage}
+              newsBriefing={newsBriefing}
               graphData={session.graphData}
               timelineData={session.timelineData}
               isGeneratingGraph={session.isGeneratingGraph}
@@ -140,21 +137,6 @@ export default function App() {
         onSelectCountry={globe.handleSelectCountry}
       />
 
-      <button
-        className="settings-gear"
-        onClick={() => setSettingsOpen(true)}
-        aria-label="Open settings"
-      >
-        &#9881;
-      </button>
-
-      {settingsOpen && (
-        <SettingsPanel
-          settings={settings}
-          onChange={handleSettingsChange}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
     </>
   );
 }
