@@ -2,10 +2,11 @@
  * Backend API Client
  *
  * Talks to the Express backend for:
- *   - News fetching (proxied through server to protect API key)
+ *   - GDELT events fetching (country news via GDELT)
  *   - Country session creation (triggers Nemotron brief + RAG)
  *   - Session status polling
  *   - RAG-grounded chat
+ *   - Graph and timeline generation
  *
  * In development, Vite proxies /api to the backend server (localhost:3001).
  */
@@ -32,20 +33,20 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-// ─── News ──────────────────────────────────────────────────
+// ─── GDELT Events ──────────────────────────────────────────
 
 /**
- * Fetch news articles for a country.
- * GET /api/news?country=ca&category=...&q=...&hours=72
+ * Fetch GDELT events for a country.
+ * GET /api/events?country=us&countryName=United+States&dateRange=7d&tone=all&eventType=all
  */
-export async function fetchNews({ country, countryName, category, q, hours = 72 }) {
+export async function fetchEvents({ country, countryName, dateRange = '7d', tone = 'all', eventType = 'all' }) {
   const params = new URLSearchParams({ country });
   if (countryName) params.append('countryName', countryName);
-  if (category) params.append('category', category);
-  if (q) params.append('q', q);
-  if (hours) params.append('hours', String(hours));
+  if (dateRange) params.append('dateRange', dateRange);
+  if (tone) params.append('tone', tone);
+  if (eventType) params.append('eventType', eventType);
 
-  return apiFetch(`/news?${params}`);
+  return apiFetch(`/events?${params}`);
 }
 
 // ─── Country Session ───────────────────────────────────────
@@ -82,6 +83,22 @@ export async function sendChatMessage(sessionId, message, settings = {}) {
     method: 'POST',
     body: JSON.stringify({ message, settings }),
   });
+}
+
+/**
+ * Generate a Recharts-compatible bar chart for the session's news.
+ * POST /api/country-session/:sessionId/graph
+ */
+export async function fetchGraph(sessionId) {
+  return apiFetch(`/country-session/${sessionId}/graph`, { method: 'POST' });
+}
+
+/**
+ * Generate a chronological timeline of events for the session's news.
+ * POST /api/country-session/:sessionId/timeline
+ */
+export async function fetchTimeline(sessionId) {
+  return apiFetch(`/country-session/${sessionId}/timeline`, { method: 'POST' });
 }
 
 /**

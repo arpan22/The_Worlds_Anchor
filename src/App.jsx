@@ -2,7 +2,7 @@ import "./App.css";
 import GlobeView from "./components/GlobeView";
 import Topbar from "./components/Topbar";
 import { useGlobeCountries } from "./hooks/useGlobeCountries";
-import { useCountryNews } from "./hooks/useCountryNews";
+import { useCountryEvents } from "./hooks/useCountryEvents";
 import { useCountrySession } from "./hooks/useCountrySession";
 import CountryPanel from "./components/CountryPanel";
 import SettingsPanel from "./components/SettingsPanel";
@@ -28,7 +28,8 @@ function loadSettings() {
 
 export default function App() {
   const globe = useGlobeCountries();
-  const news = useCountryNews(globe.selectedCountry);
+  const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'all' });
+  const events = useCountryEvents(globe.selectedCountry, eventFilters);
 
   // Settings state — persisted in localStorage
   const [settings, setSettings] = useState(loadSettings);
@@ -105,10 +106,13 @@ export default function App() {
               country={globe.selectedCountry}
               countrySummary={summaryError ?? countrySummary}
               onClose={globe.clearSelection}
-              articles={news.articles}
-              isLoading={news.isLoading}
-              error={news.error}
-              onRefresh={news.refresh}
+              articles={events.articles}
+              toneSeries={events.toneSeries}
+              isLoading={events.isLoading}
+              error={events.error}
+              onRefresh={events.refresh}
+              eventFilters={eventFilters}
+              onFiltersChange={setEventFilters}
               // Nemotron session props
               sessionStatus={session.sessionStatus}
               brief={session.brief}
@@ -116,6 +120,12 @@ export default function App() {
               chatMessages={session.messages}
               isChatSending={session.isSending}
               onChatSend={session.sendMessage}
+              graphData={session.graphData}
+              timelineData={session.timelineData}
+              isGeneratingGraph={session.isGeneratingGraph}
+              isGeneratingTimeline={session.isGeneratingTimeline}
+              onGenerateGraph={session.generateGraph}
+              onGenerateTimeline={session.generateTimeline}
             />
           </div>
         )}

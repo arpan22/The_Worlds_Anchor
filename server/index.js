@@ -23,7 +23,7 @@ import { config } from './config/index.js';
 import { NemotronClient } from './services/NemotronClient.js';
 import { GeminiSearchClient } from './services/GeminiSearchClient.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
-import newsRoutes from './routes/news.js';
+import eventsRoutes from './routes/events.js';
 import sessionRoutes from './routes/session.js';
 
 const app = express();
@@ -46,7 +46,7 @@ app.locals.gemini = gemini;
 
 // ─── Routes ────────────────────────────────────────────────
 
-app.use('/api', newsRoutes);
+app.use('/api', eventsRoutes);
 app.use('/api', sessionRoutes);
 
 // Health check
@@ -60,7 +60,7 @@ app.get('/api/health', async (_req, res) => {
     nemotronModel: config.nemotronModel,
     embeddingModel: config.embeddingModel,
     geminiModel: config.geminiModel,
-    newsApiConfigured: Boolean(config.newsApiKey),
+    gdelt: 'free',
   });
 });
 
@@ -82,7 +82,7 @@ app.listen(config.port, () => {
 ║  Nemotron:   ${config.nemotronModel.padEnd(35).slice(0, 35)}║
 ║  Embeddings: ${config.embeddingModel.padEnd(35).slice(0, 35)}║
 ║  Gemini:     ${config.geminiModel.padEnd(35).slice(0, 35)}║
-║  NewsAPI:    ${(config.newsApiKey ? 'configured' : 'MISSING').padEnd(35)}║
+║  GDELT:      ${'free, no key needed'.padEnd(35)}║
 ║  NVIDIA:     ${(config.nvidiaApiKey ? 'configured' : 'MISSING').padEnd(35)}║
 ║  Gemini key: ${(config.geminiApiKey ? 'configured' : 'MISSING').padEnd(35)}║
 ╚══════════════════════════════════════════════════╝

@@ -3,6 +3,8 @@ import {
   createCountrySession,
   getSessionStatus,
   sendChatMessage,
+  fetchGraph,
+  fetchTimeline,
 } from '../services/backendApi';
 import { getCountryCode } from '../utils/countryCodes';
 
@@ -28,6 +30,12 @@ export function useCountrySession(selectedCountry, settings = {}) {
   const [messages, setMessages] = useState([]);
   const [isSending, setIsSending] = useState(false);
 
+  // Graph / timeline state
+  const [graphData, setGraphData] = useState(null);
+  const [timelineData, setTimelineData] = useState(null);
+  const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
+  const [isGeneratingTimeline, setIsGeneratingTimeline] = useState(false);
+
   // Refs for cleanup
   const pollRef = useRef(null);
   const abortRef = useRef(false);
@@ -45,6 +53,8 @@ export function useCountrySession(selectedCountry, settings = {}) {
     setError(null);
     setMessages([]);
     setIsSending(false);
+    setGraphData(null);
+    setTimelineData(null);
   }, []);
 
   // ── Create session when country is selected ──
@@ -160,6 +170,32 @@ export function useCountrySession(selectedCountry, settings = {}) {
     [sessionId, sessionStatus, settings]
   );
 
+  const generateGraph = useCallback(async () => {
+    if (!sessionId || sessionStatus !== 'ready') return;
+    setIsGeneratingGraph(true);
+    try {
+      const result = await fetchGraph(sessionId);
+      setGraphData(result.graphData || null);
+    } catch (err) {
+      console.error('[useCountrySession] Graph error:', err.message);
+    } finally {
+      setIsGeneratingGraph(false);
+    }
+  }, [sessionId, sessionStatus]);
+
+  const generateTimeline = useCallback(async () => {
+    if (!sessionId || sessionStatus !== 'ready') return;
+    setIsGeneratingTimeline(true);
+    try {
+      const result = await fetchTimeline(sessionId);
+      setTimelineData(result.timelineData || null);
+    } catch (err) {
+      console.error('[useCountrySession] Timeline error:', err.message);
+    } finally {
+      setIsGeneratingTimeline(false);
+    }
+  }, [sessionId, sessionStatus]);
+
   return {
     sessionId,
     sessionStatus,
@@ -170,6 +206,14 @@ export function useCountrySession(selectedCountry, settings = {}) {
     messages,
     isSending,
     sendMessage,
+
+    // Graph / timeline
+    graphData,
+    timelineData,
+    isGeneratingGraph,
+    isGeneratingTimeline,
+    generateGraph,
+    generateTimeline,
 
     // Controls
     reset,

@@ -14,9 +14,9 @@ dotenv.config({ path: resolve(__dirname, '../../.env') });
 export const config = {
   port: parseInt(process.env.PORT || '3001', 10),
 
-  // NewsAPI
-  newsApiKey: process.env.NEWS_API_KEY || '',
-  newsApiBaseUrl: 'https://newsapi.org/v2',
+  // GDELT (free, no API key required)
+  gdeltDocBaseUrl: 'https://api.gdeltproject.org/api/v2/doc/doc',
+  gdeltCacheTtlMs: 8 * 60 * 1000,
 
   // NVIDIA NIM / Nemotron (primary reasoning model)
   nvidiaApiKey: process.env.NVIDIA_API_KEY || '',

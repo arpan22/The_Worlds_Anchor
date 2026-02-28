@@ -33,6 +33,10 @@ import {
   buildAugmentedChatUserPrompt,
   FALLBACK_CHAT_SYSTEM_PROMPT,
   buildFallbackChatUserPrompt,
+  GRAPH_SYSTEM_PROMPT,
+  buildGraphUserPrompt,
+  TIMELINE_SYSTEM_PROMPT,
+  buildTimelineUserPrompt,
 } from '../prompts/templates.js';
 
 const router = Router();
@@ -288,6 +292,56 @@ router.post('/country-session/:sessionId/chat', async (req, res) => {
   }
 });
 
+// ──────────────────────────────────────────────
+// POST /api/country-session/:sessionId/graph
+// ──────────────────────────────────────────────
+router.post('/country-session/:sessionId/graph', async (req, res) => {
+  const session = getSession(req.params.sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found or expired.' });
+  if (session.status !== 'ready') {
+    return res.status(409).json({ error: 'Brief not ready yet.', status: session.status });
+  }
+
+  const nemotron = req.app.locals.nemotron;
+  try {
+    const raw = await nemotron.chatCompletion([
+      { role: 'system', content: GRAPH_SYSTEM_PROMPT },
+      { role: 'user', content: buildGraphUserPrompt(session.brief, session.articles) },
+    ], { temperature: 0.2, maxTokens: 600, topP: 0.9 });
+
+    const graphData = parseJsonResponse(raw);
+    return res.json({ graphData });
+  } catch (err) {
+    console.error('[Graph] Error:', err.message);
+    return res.status(500).json({ error: `Graph generation failed: ${err.message}` });
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/country-session/:sessionId/timeline
+// ──────────────────────────────────────────────
+router.post('/country-session/:sessionId/timeline', async (req, res) => {
+  const session = getSession(req.params.sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found or expired.' });
+  if (session.status !== 'ready') {
+    return res.status(409).json({ error: 'Brief not ready yet.', status: session.status });
+  }
+
+  const nemotron = req.app.locals.nemotron;
+  try {
+    const raw = await nemotron.chatCompletion([
+      { role: 'system', content: TIMELINE_SYSTEM_PROMPT },
+      { role: 'user', content: buildTimelineUserPrompt(session.articles) },
+    ], { temperature: 0.2, maxTokens: 1200, topP: 0.9 });
+
+    const timelineData = parseJsonResponse(raw);
+    return res.json({ timelineData });
+  } catch (err) {
+    console.error('[Timeline] Error:', err.message);
+    return res.status(500).json({ error: `Timeline generation failed: ${err.message}` });
+  }
+});
+
 export default router;
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -358,4 +412,13 @@ function stripMarkdown(text) {
   }
 
   return cleaned.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Parse JSON from Nemotron response, stripping markdown fences if present */
+function parseJsonResponse(raw) {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  }
+  return JSON.parse(cleaned);
 }

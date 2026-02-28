@@ -9,7 +9,7 @@
  *   5. Generate country brief via Nemotron
  *   6. Update session to "ready"
  */
-import { fetchCountryNews } from './newsService.js';
+import { fetchCountryEvents } from './gdeltService.js';
 import {
   deduplicateArticles,
   chunkArticles,
@@ -35,15 +35,15 @@ export async function runBriefPipeline(session, nemotron) {
     // ── Step 1: Fetch articles ────────────────────────────
     console.log(`[BriefGen] ${sessionId} — Fetching articles for ${countryName}`);
 
-    const newsResult = await fetchCountryNews(countryCode, countryName, {
-      pageSize: 30,
-      hours: 72,
+    const newsResult = await fetchCountryEvents(countryCode, countryName, {
+      dateRange: '3d',
+      maxRecords: 30,
     });
 
     if (newsResult.error && newsResult.articles.length === 0) {
       updateSession(sessionId, {
         status: 'error',
-        error: `Failed to fetch news: ${newsResult.error}`,
+        error: `Failed to fetch events: ${newsResult.error}`,
       });
       return;
     }

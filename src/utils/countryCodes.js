@@ -234,14 +234,19 @@ export function getCountryCode(countryName) {
 }
 
 /**
- * Checks if a country is supported by NewsAPI's top-headlines endpoint or WorldNewsAPI
+ * Checks if a country is supported by GDELT (all countries with a known code are supported).
  *
  * @param {string} countryCode - ISO 3166-1 alpha-2 country code
- * @returns {boolean} True if supported by either API
+ * @returns {boolean} True if the country has a mapped ISO code
  */
-export function isNewsApiSupported(countryCode) {
+export function isGdeltSupported(countryCode) {
   if (!countryCode) return false;
-  return NEWSAPI_SUPPORTED_COUNTRIES.has(countryCode.toLowerCase());
+  return countryCode.length === 2; // GDELT covers all countries globally
+}
+
+/** @deprecated Use isGdeltSupported instead */
+export function isNewsApiSupported(countryCode) {
+  return isGdeltSupported(countryCode);
 }
 
 /**

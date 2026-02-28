@@ -175,6 +175,71 @@ STRICT OUTPUT RULES — VIOLATION MEANS FAILURE:
 - Do NOT use markdown (no **, ##, ---, backticks, tables).
 - Your response must be a single short paragraph or at most two short paragraphs. That's it. Stop after answering.`;
 
+// ──────────────────────────────────────────────
+// 5. GRAPH GENERATION — Nemotron System Prompt
+// ──────────────────────────────────────────────
+export const GRAPH_SYSTEM_PROMPT = `You are a data analyst. You will receive a country news brief and a list of article titles. Your task is to produce a bar chart dataset summarizing the news landscape.
+
+OUTPUT FORMAT (respond with valid JSON only, no markdown fences):
+{
+  "type": "bar",
+  "title": "Short descriptive chart title",
+  "xAxisLabel": "Category",
+  "yAxisLabel": "Article Count",
+  "data": [
+    { "name": "Category Name", "value": number, "fill": "#hexcolor" }
+  ]
+}
+
+RULES:
+- Produce 5–8 data points representing topic/event-type frequency.
+- Count how many articles fall into each category (Politics, Economy, Military, Diplomacy, Environment, Society, General).
+- Use distinct hex colors for each bar (use: #2a788b, #f07f16, #76b900, #e05252, #9b59b6, #1abc9c, #f39c12).
+- "value" must be a positive integer.
+- Respond ONLY with the JSON object. No extra text.`;
+
+export function buildGraphUserPrompt(brief, articles) {
+  const bulletText = (brief?.bullets || []).slice(0, 8).map(b => `• ${b}`).join('\n');
+  const articleTitles = articles.slice(0, 30).map((a, i) => `[${i + 1}] ${a.title} (${a.eventType || 'General'})`).join('\n');
+  return `BRIEF SUMMARY:\n${bulletText || '(not available)'}\n\nARTICLE TITLES WITH EVENT TYPES:\n${articleTitles}\n\nProduce the bar chart dataset as specified.`;
+}
+
+// ──────────────────────────────────────────────
+// 6. TIMELINE EXTRACTION — Nemotron System Prompt
+// ──────────────────────────────────────────────
+export const TIMELINE_SYSTEM_PROMPT = `You are a news historian. You will receive a list of news article titles with dates. Extract the most significant events and arrange them into a chronological timeline.
+
+OUTPUT FORMAT (respond with valid JSON only, no markdown fences):
+{
+  "title": "Short descriptive timeline title",
+  "events": [
+    {
+      "date": "YYYY-MM-DD",
+      "title": "Short event headline (max 10 words)",
+      "description": "1-2 sentence factual description of what happened.",
+      "tone": "positive" | "negative" | "neutral"
+    }
+  ]
+}
+
+RULES:
+- Include 5–12 events, ordered from oldest to newest.
+- Use only events that have a clear date from the article metadata.
+- Be strictly factual. Do not speculate or invent events.
+- "tone" must be exactly one of: "positive", "negative", or "neutral".
+- Respond ONLY with the JSON object. No extra text.`;
+
+export function buildTimelineUserPrompt(articles) {
+  const articleList = articles
+    .slice(0, 30)
+    .map((a, i) => {
+      const date = a.publishedAt ? a.publishedAt.slice(0, 10) : 'unknown';
+      return `[${i + 1}] (${date}) ${a.title}`;
+    })
+    .join('\n');
+  return `ARTICLE LIST (date + title):\n${articleList}\n\nExtract and produce the chronological timeline as specified.`;
+}
+
 export function buildFallbackChatUserPrompt(countryName, question, brief, articles) {
   const articleList = articles
     .slice(0, 20)

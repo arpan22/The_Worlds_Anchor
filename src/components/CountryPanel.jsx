@@ -1,13 +1,35 @@
 import { useState } from "react";
-import { formatPublishedDate } from "../services/newsApi";
 import CountryBrief from "./CountryBrief";
 import ChatPanel from "./ChatPanel";
 import "./CountryPanel.css";
 
-// Number of articles to show as "trending"
 const TRENDING_COUNT = 3;
 
+/** Format a date string for display relative to now */
+function formatPublishedDate(isoDate) {
+  if (!isoDate) return 'Unknown date';
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** Tone badge color */
+function toneBadge(tone) {
+  if (tone === 'positive') return { label: '▲ Positive', className: 'tone--positive' };
+  if (tone === 'negative') return { label: '▼ Negative', className: 'tone--negative' };
+  return null;
+}
+
 function ArticleCard({ article, isTrending = false }) {
+  const badge = toneBadge(article.tone);
   return (
     <article className={`article-card ${isTrending ? "article-card--trending" : ""}`}>
       {isTrending && (
@@ -15,6 +37,12 @@ function ArticleCard({ article, isTrending = false }) {
           <span className="article-card__badge-icon">▲</span>
           TRENDING
         </div>
+      )}
+      {badge && !isTrending && (
+        <span className={`article-card__tone ${badge.className}`}>{badge.label}</span>
+      )}
+      {article.eventType && article.eventType !== 'General' && (
+        <span className="article-card__event-type">{article.eventType}</span>
       )}
       <a
         href={article.url}
@@ -24,13 +52,6 @@ function ArticleCard({ article, isTrending = false }) {
       >
         <h3 className="article-card__title">{article.title}</h3>
       </a>
-      {article.description && (
-        <p className="article-card__description">
-          {article.description.length > (isTrending ? 150 : 120)
-            ? `${article.description.substring(0, isTrending ? 150 : 120)}...`
-            : article.description}
-        </p>
-      )}
       <footer className="article-card__footer">
         <span className="article-card__source">{article.source}</span>
         <span className="article-card__time">
@@ -41,14 +62,40 @@ function ArticleCard({ article, isTrending = false }) {
   );
 }
 
+const DATE_RANGE_OPTIONS = [
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '3d',  label: 'Last 3 days' },
+  { value: '7d',  label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+];
+const TONE_OPTIONS = [
+  { value: 'all',      label: 'All tones' },
+  { value: 'positive', label: 'Positive' },
+  { value: 'neutral',  label: 'Neutral' },
+  { value: 'negative', label: 'Negative' },
+];
+const EVENT_TYPE_OPTIONS = [
+  { value: 'all',         label: 'All types' },
+  { value: 'Politics',    label: 'Politics' },
+  { value: 'Military',    label: 'Military / Conflict' },
+  { value: 'Economy',     label: 'Economy' },
+  { value: 'Diplomacy',   label: 'Diplomacy' },
+  { value: 'Environment', label: 'Environment' },
+  { value: 'Society',     label: 'Society' },
+];
+
 export default function CountryPanel({
   country,
   countrySummary = null,
   onClose,
+  // Events (GDELT)
   articles = [],
+  toneSeries = [],
   isLoading = false,
   error = null,
   onRefresh,
+  eventFilters = { dateRange: '7d', tone: 'all', eventType: 'all' },
+  onFiltersChange,
   // Nemotron session props
   sessionStatus = 'idle',
   brief = null,
@@ -56,8 +103,15 @@ export default function CountryPanel({
   chatMessages = [],
   isChatSending = false,
   onChatSend,
+  // Graph / timeline
+  graphData = null,
+  timelineData = null,
+  isGeneratingGraph = false,
+  isGeneratingTimeline = false,
+  onGenerateGraph,
+  onGenerateTimeline,
 }) {
-  const [activeTab, setActiveTab] = useState('news');
+  const [activeTab, setActiveTab] = useState('events');
 
   if (!country) return null;
 
@@ -66,47 +120,50 @@ export default function CountryPanel({
 
   const chatDisabled = sessionStatus !== 'ready';
   const chatDisabledReason =
-    sessionStatus === 'building'
-      ? 'Building brief with NVIDIA Nemotron...'
-      : sessionStatus === 'error'
-        ? 'Brief generation failed — chat unavailable.'
-        : sessionStatus === 'idle'
-          ? 'Initializing session...'
-          : '';
+    sessionStatus === 'building' ? 'Building brief with NVIDIA Nemotron...'
+    : sessionStatus === 'error'   ? 'Brief generation failed — chat unavailable.'
+    : sessionStatus === 'idle'    ? 'Initializing session...'
+    : '';
+
+  function handleFilterChange(key, value) {
+    onFiltersChange?.({ ...eventFilters, [key]: value });
+  }
 
   return (
     <aside className="panel panel--open">
-      <button className="panel__close" onClick={onClose} aria-label="Close panel">
-        ×
-      </button>
+      <button className="panel__close" onClick={onClose} aria-label="Close panel">×</button>
 
       <header className="panel__header">
         <h2 className="panel__title">{country.properties?.name}</h2>
-        <p className="panel__subtitle">Latest News Headlines</p>
+        <p className="panel__subtitle">GDELT Global Events Feed</p>
       </header>
 
-      {/* Tab bar — separates news feed from AI features */}
       <div className="panel__tabs">
         <button
-          className={`panel__tab ${activeTab === 'news' ? 'panel__tab--active' : ''}`}
-          onClick={() => setActiveTab('news')}
+          className={`panel__tab ${activeTab === 'events' ? 'panel__tab--active' : ''}`}
+          onClick={() => setActiveTab('events')}
         >
-          Headlines
+          Events
+        </button>
+        <button
+          className={`panel__tab ${activeTab === 'filters' ? 'panel__tab--active' : ''}`}
+          onClick={() => setActiveTab('filters')}
+        >
+          Filters
         </button>
         <button
           className={`panel__tab ${activeTab === 'ai' ? 'panel__tab--active' : ''}`}
           onClick={() => setActiveTab('ai')}
         >
           AI Analysis
-          {sessionStatus === 'building' && (
-            <span className="panel__tab-dot" />
-          )}
+          {sessionStatus === 'building' && <span className="panel__tab-dot" />}
         </button>
       </div>
 
       <div className="panel__body">
-        {/* HEADLINES TAB */}
-        {activeTab === 'news' && (
+
+        {/* ── EVENTS TAB ── */}
+        {activeTab === 'events' && (
           <>
             {countrySummary && (
               <section className="panel__section panel__section--summary">
@@ -120,7 +177,7 @@ export default function CountryPanel({
             {isLoading && (
               <div className="panel__loading">
                 <div className="panel__spinner" />
-                <span>Loading news...</span>
+                <span>Fetching GDELT events...</span>
               </div>
             )}
 
@@ -129,9 +186,7 @@ export default function CountryPanel({
                 <span className="panel__error-icon">!</span>
                 <p>{error}</p>
                 {onRefresh && (
-                  <button className="panel__retry-btn" onClick={onRefresh}>
-                    Try Again
-                  </button>
+                  <button className="panel__retry-btn" onClick={onRefresh}>Try Again</button>
                 )}
               </div>
             )}
@@ -140,7 +195,7 @@ export default function CountryPanel({
               <>
                 {trendingArticles.length > 0 && (
                   <section className="panel__section">
-                    <h3 className="panel__section-title">Trending Now</h3>
+                    <h3 className="panel__section-title">Top Stories</h3>
                     <div className="panel__articles panel__articles--trending">
                       {trendingArticles.map((article) => (
                         <ArticleCard key={article.id} article={article} isTrending />
@@ -148,10 +203,9 @@ export default function CountryPanel({
                     </div>
                   </section>
                 )}
-
                 {regularArticles.length > 0 && (
                   <section className="panel__section">
-                    <h3 className="panel__section-title">More Headlines</h3>
+                    <h3 className="panel__section-title">More Events</h3>
                     <div className="panel__articles">
                       {regularArticles.map((article) => (
                         <ArticleCard key={article.id} article={article} />
@@ -164,13 +218,67 @@ export default function CountryPanel({
 
             {!isLoading && !error && articles.length === 0 && (
               <div className="panel__empty">
-                <p>No news articles available for this country.</p>
+                <p>No events found. Try adjusting the date range in Filters.</p>
               </div>
             )}
           </>
         )}
 
-        {/* AI ANALYSIS TAB */}
+        {/* ── FILTERS TAB ── */}
+        {activeTab === 'filters' && (
+          <section className="panel__section filters-panel">
+            <h3 className="panel__section-title">Event Filters</h3>
+            <p className="filters-panel__hint">Filters re-fetch events from GDELT automatically.</p>
+
+            <div className="filters-panel__group">
+              <label className="filters-panel__label">Date Range</label>
+              <select
+                className="filters-panel__select"
+                value={eventFilters.dateRange}
+                onChange={(e) => handleFilterChange('dateRange', e.target.value)}
+              >
+                {DATE_RANGE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filters-panel__group">
+              <label className="filters-panel__label">Tone</label>
+              <select
+                className="filters-panel__select"
+                value={eventFilters.tone}
+                onChange={(e) => handleFilterChange('tone', e.target.value)}
+              >
+                {TONE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filters-panel__group">
+              <label className="filters-panel__label">Event Type</label>
+              <select
+                className="filters-panel__select"
+                value={eventFilters.eventType}
+                onChange={(e) => handleFilterChange('eventType', e.target.value)}
+              >
+                {EVENT_TYPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              className="filters-panel__apply-btn"
+              onClick={onRefresh}
+            >
+              Refresh Events
+            </button>
+          </section>
+        )}
+
+        {/* ── AI ANALYSIS TAB ── */}
         {activeTab === 'ai' && (
           <>
             <section className="panel__section">
@@ -178,6 +286,12 @@ export default function CountryPanel({
                 brief={brief}
                 status={sessionStatus}
                 error={sessionError}
+                graphData={graphData}
+                timelineData={timelineData}
+                isGeneratingGraph={isGeneratingGraph}
+                isGeneratingTimeline={isGeneratingTimeline}
+                onGenerateGraph={onGenerateGraph}
+                onGenerateTimeline={onGenerateTimeline}
               />
             </section>
 
@@ -194,10 +308,10 @@ export default function CountryPanel({
         )}
       </div>
 
-      {activeTab === 'news' && !isLoading && articles.length > 0 && onRefresh && (
+      {activeTab === 'events' && !isLoading && articles.length > 0 && onRefresh && (
         <footer className="panel__footer">
           <button className="panel__refresh-btn" onClick={onRefresh}>
-            Refresh News
+            Refresh Events
           </button>
         </footer>
       )}
