@@ -3,7 +3,7 @@ import CountryBrief from "./CountryBrief";
 import GroqChatWidget from "./GroqChatWidget";
 import CountryInfo from "./CountryInfo";
 import { getCountryCode } from "../utils/countryCodes";
-import { getCountrySportsProfile } from "../data/countrySportsProfiles";
+import { getCountrySportsProfile, getCountrySecondarySportsProfile } from "../data/countrySportsProfiles";
 import { fetchSportsTable } from "../services/backendApi";
 import "./CountryPanel.css";
 
@@ -23,6 +23,19 @@ function formatPublishedDate(isoDate) {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatNrr(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '-';
+  return `${num >= 0 ? '+' : ''}${num.toFixed(3)}`;
+}
+
+function getSportsTableType(leagueMeta) {
+  const sport = String(leagueMeta?.sport || '').toLowerCase();
+  if (sport.includes('cricket')) return 'cricket';
+  if (sport.includes('soccer')) return 'soccer';
+  return 'generic';
 }
 
 /** Tone badge color */
@@ -102,14 +115,24 @@ export default function CountryPanel({
   const [sportsMeta, setSportsMeta] = useState({ league: null, season: null, isFallbackSeason: false });
   const [sportsError, setSportsError] = useState(null);
   const [sportsLoading, setSportsLoading] = useState(false);
+  const [secondarySportsTable, setSecondarySportsTable] = useState([]);
+  const [secondarySportsMeta, setSecondarySportsMeta] = useState({ league: null, season: null, isFallbackSeason: false });
+  const [secondarySportsError, setSecondarySportsError] = useState(null);
+  const [secondarySportsLoading, setSecondarySportsLoading] = useState(false);
+  const [failedBadges, setFailedBadges] = useState({});
 
   if (!country) return null;
 
   const trendingArticles = articles.slice(0, TRENDING_COUNT);
   const regularArticles = articles.slice(TRENDING_COUNT);
   const isSportsMode = eventFilters.eventType === 'Sports';
+  const primaryTableType = isSportsMode ? getSportsTableType(sportsMeta?.league) : 'generic';
+  const secondaryTableType = isSportsMode ? getSportsTableType(secondarySportsMeta?.league) : 'generic';
   const sportsProfile = isSportsMode
     ? getCountrySportsProfile(country.properties?.name || countryInfo?.name || '')
+    : null;
+  const secondarySportsProfile = isSportsMode
+    ? getCountrySecondarySportsProfile(country.properties?.name || countryInfo?.name || '')
     : null;
 
   const chatDisabled = sessionStatus !== 'ready';
@@ -136,37 +159,70 @@ export default function CountryPanel({
       const countryCode = countryInfo?.code || getCountryCode(country?.properties?.name);
       if (!countryName || !countryCode) {
         setSportsTable([]);
+        setSportsMeta({ league: null, season: null, isFallbackSeason: false });
         setSportsError('Sports table unavailable for this country.');
+        setSecondarySportsTable([]);
+        setSecondarySportsMeta({ league: null, season: null, isFallbackSeason: false });
+        setSecondarySportsError('Secondary sports table unavailable for this country.');
         return;
       }
 
       setSportsLoading(true);
+      setSecondarySportsLoading(true);
       setSportsError(null);
+      setSecondarySportsError(null);
 
       try {
-        const result = await fetchSportsTable({ country: countryCode, countryName });
+        const [primaryResult, secondaryResult] = await Promise.all([
+          fetchSportsTable({ country: countryCode, countryName, slot: 'primary' }),
+          fetchSportsTable({ country: countryCode, countryName, slot: 'secondary' }).catch((err) => ({
+            table: [],
+            league: null,
+            season: null,
+            isFallbackSeason: false,
+            error: err?.message || 'Secondary league table unavailable right now.',
+          })),
+        ]);
         if (cancelled) return;
 
-        setSportsTable(Array.isArray(result.table) ? result.table : []);
+        setSportsTable(Array.isArray(primaryResult.table) ? primaryResult.table : []);
         setSportsMeta({
-          league: result.league || null,
-          season: result.season || null,
-          isFallbackSeason: Boolean(result.isFallbackSeason),
+          league: primaryResult.league || null,
+          season: primaryResult.season || null,
+          isFallbackSeason: Boolean(primaryResult.isFallbackSeason),
         });
-        setSportsError(result.error || null);
+        setSportsError(primaryResult.error || null);
+
+        setSecondarySportsTable(Array.isArray(secondaryResult.table) ? secondaryResult.table : []);
+        setSecondarySportsMeta({
+          league: secondaryResult.league || null,
+          season: secondaryResult.season || null,
+          isFallbackSeason: Boolean(secondaryResult.isFallbackSeason),
+        });
+        setSecondarySportsError(secondaryResult.error || null);
       } catch (err) {
         if (cancelled) return;
         setSportsTable([]);
         setSportsMeta({ league: null, season: null, isFallbackSeason: false });
         setSportsError(err.message || 'Failed to load league table.');
+        setSecondarySportsTable([]);
+        setSecondarySportsMeta({ league: null, season: null, isFallbackSeason: false });
+        setSecondarySportsError(null);
       } finally {
-        if (!cancelled) setSportsLoading(false);
+        if (!cancelled) {
+          setSportsLoading(false);
+          setSecondarySportsLoading(false);
+        }
       }
     }
 
     loadSportsTable();
     return () => { cancelled = true; };
   }, [isSportsMode, country, countryInfo]);
+
+  useEffect(() => {
+    setFailedBadges({});
+  }, [sportsTable]);
 
 
   return (
@@ -238,11 +294,43 @@ export default function CountryPanel({
                       <strong className="sports-profile__value">{sportsProfile.seasonWindow}</strong>
                     </div>
                   </div>
-                  <div className="sports-profile__teams">
-                    {sportsProfile.notableTeams.map((team) => (
-                      <span key={team} className="sports-profile__chip">{team}</span>
-                    ))}
+                  {Array.isArray(sportsProfile.notableTeams) && sportsProfile.notableTeams.length > 0 && (
+                    <div className="sports-profile__teams">
+                      {sportsProfile.notableTeams.map((team) => (
+                        <span key={team} className="sports-profile__chip">{team}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {isSportsMode && secondarySportsProfile && (
+              <section className="panel__section">
+                <h3 className="panel__section-title">Second Most Followed Sport</h3>
+                <div className="sports-profile">
+                  <p className="sports-profile__summary">{secondarySportsProfile.summary}</p>
+                  <div className="sports-profile__grid">
+                    <div className="sports-profile__item">
+                      <span className="sports-profile__label">Second Sport</span>
+                      <strong className="sports-profile__value">{secondarySportsProfile.topSport}</strong>
+                    </div>
+                    <div className="sports-profile__item">
+                      <span className="sports-profile__label">Biggest League</span>
+                      <strong className="sports-profile__value">{secondarySportsProfile.majorLeague}</strong>
+                    </div>
+                    <div className="sports-profile__item">
+                      <span className="sports-profile__label">Season Window</span>
+                      <strong className="sports-profile__value">{secondarySportsProfile.seasonWindow}</strong>
+                    </div>
                   </div>
+                  {Array.isArray(secondarySportsProfile.notableTeams) && secondarySportsProfile.notableTeams.length > 0 && (
+                    <div className="sports-profile__teams">
+                      {secondarySportsProfile.notableTeams.map((team) => (
+                        <span key={team} className="sports-profile__chip">{team}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </section>
             )}
@@ -250,13 +338,13 @@ export default function CountryPanel({
             {isSportsMode && sportsLoading && (
               <div className="panel__loading">
                 <div className="panel__spinner" />
-                <span>Loading league table...</span>
+                <span>Loading league tables...</span>
               </div>
             )}
 
-            {isSportsMode && !sportsLoading && sportsMeta.league?.name && (
+            {isSportsMode && !sportsLoading && sportsTable.length > 0 && sportsMeta.league?.name && (
               <section className="panel__section">
-                <h3 className="panel__section-title">League Table</h3>
+                <h3 className="panel__section-title">Primary League Table</h3>
                 <div className="sports-table-wrap">
                   {sportsError && sportsTable.length > 0 && (
                     <div className="sports-table-note">{sportsError}</div>
@@ -275,10 +363,12 @@ export default function CountryPanel({
                         <tr>
                           <th>#</th>
                           <th>Team</th>
-                          <th>P</th>
+                          {primaryTableType === 'soccer' && <th>P</th>}
                           <th>W</th>
-                          <th>D</th>
+                          {primaryTableType === 'soccer' && <th>D</th>}
                           <th>L</th>
+                          {primaryTableType === 'cricket' && <th>NR</th>}
+                          {primaryTableType === 'cricket' && <th>NRR</th>}
                           <th>Pts</th>
                         </tr>
                       </thead>
@@ -286,11 +376,33 @@ export default function CountryPanel({
                         {sportsTable.slice(0, 20).map((row) => (
                           <tr key={`${row.position}-${row.team}`}>
                             <td>{row.position}</td>
-                            <td>{row.team}</td>
-                            <td>{row.played}</td>
+                            <td>
+                              <div className="sports-table__team">
+                                {row.badge && !failedBadges[`primary-${row.position}-${row.team}`] ? (
+                                  <img
+                                    src={row.badge}
+                                    alt={`${row.team} emblem`}
+                                    className="sports-table__badge"
+                                    loading="lazy"
+                                    onError={() => {
+                                      const key = `primary-${row.position}-${row.team}`;
+                                      setFailedBadges((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="sports-table__badge-placeholder">
+                                    {String(row.team || '?').slice(0, 2).toUpperCase()}
+                                  </span>
+                                )}
+                                <span>{row.team}</span>
+                              </div>
+                            </td>
+                            {primaryTableType === 'soccer' && <td>{row.played}</td>}
                             <td>{row.win}</td>
-                            <td>{row.draw}</td>
+                            {primaryTableType === 'soccer' && <td>{row.draw}</td>}
                             <td>{row.loss}</td>
+                            {primaryTableType === 'cricket' && <td>{row.noResult ?? 0}</td>}
+                            {primaryTableType === 'cricket' && <td>{formatNrr(row.nrr)}</td>}
                             <td>{row.points}</td>
                           </tr>
                         ))}
@@ -301,11 +413,75 @@ export default function CountryPanel({
               </section>
             )}
 
-            {isSportsMode && !sportsLoading && sportsError && sportsTable.length === 0 && (
-              <div className="panel__error">
-                <span className="panel__error-icon">!</span>
-                <p>{sportsError}</p>
-              </div>
+            {isSportsMode && !secondarySportsLoading && secondarySportsTable.length > 0 && secondarySportsMeta.league?.name && (
+              <section className="panel__section">
+                <h3 className="panel__section-title">Secondary League Table</h3>
+                <div className="sports-table-wrap">
+                  {secondarySportsError && secondarySportsTable.length > 0 && (
+                    <div className="sports-table-note">{secondarySportsError}</div>
+                  )}
+                  <div className="sports-table-meta">
+                    <strong>{secondarySportsMeta.league.name}</strong>
+                    <span>
+                      {secondarySportsMeta.season
+                        ? `Season: ${secondarySportsMeta.season}${secondarySportsMeta.isFallbackSeason ? ' (latest available)' : ''}`
+                        : 'Latest available standings'}
+                    </span>
+                  </div>
+                  <div className="sports-table-scroll">
+                    <table className="sports-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Team</th>
+                          {secondaryTableType === 'soccer' && <th>P</th>}
+                          <th>W</th>
+                          {secondaryTableType === 'soccer' && <th>D</th>}
+                          <th>L</th>
+                          {secondaryTableType === 'cricket' && <th>NR</th>}
+                          {secondaryTableType === 'cricket' && <th>NRR</th>}
+                          <th>Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {secondarySportsTable.slice(0, 20).map((row) => (
+                          <tr key={`secondary-${row.position}-${row.team}`}>
+                            <td>{row.position}</td>
+                            <td>
+                              <div className="sports-table__team">
+                                {row.badge && !failedBadges[`secondary-${row.position}-${row.team}`] ? (
+                                  <img
+                                    src={row.badge}
+                                    alt={`${row.team} emblem`}
+                                    className="sports-table__badge"
+                                    loading="lazy"
+                                    onError={() => {
+                                      const key = `secondary-${row.position}-${row.team}`;
+                                      setFailedBadges((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="sports-table__badge-placeholder">
+                                    {String(row.team || '?').slice(0, 2).toUpperCase()}
+                                  </span>
+                                )}
+                                <span>{row.team}</span>
+                              </div>
+                            </td>
+                            {secondaryTableType === 'soccer' && <td>{row.played}</td>}
+                            <td>{row.win}</td>
+                            {secondaryTableType === 'soccer' && <td>{row.draw}</td>}
+                            <td>{row.loss}</td>
+                            {secondaryTableType === 'cricket' && <td>{row.noResult ?? 0}</td>}
+                            {secondaryTableType === 'cricket' && <td>{formatNrr(row.nrr)}</td>}
+                            <td>{row.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
             )}
 
             {isSportsMode && !sportsProfile && (

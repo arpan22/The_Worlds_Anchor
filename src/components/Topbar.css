@@ -9,6 +9,7 @@
 
   display: flex;
   align-items: center;
+  justify-content: space-between;
 
   background: #0a0f1e;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
@@ -16,9 +17,13 @@
   z-index: 10; /* sits above the globe */
 }
 
+.topbar__left {
+  display: flex;
+  align-items: center;
+}
+
 .topbar__box {
   position: relative;
-
 }
 
 .topbar__search {
@@ -62,4 +67,25 @@
 
 .topbar__item:hover {
   background: rgba(42, 120, 139, 0.25);
+}
+
+.topbar__markets-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(42, 120, 139, 0.45);
+  background: rgba(42, 120, 139, 0.2);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.topbar__markets-btn:hover {
+  background: rgba(42, 120, 139, 0.35);
+}
+
+.topbar__markets-btn--active {
+  border-color: rgba(240, 127, 22, 0.75);
+  background: rgba(240, 127, 22, 0.22);
 }

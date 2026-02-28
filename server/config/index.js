@@ -17,6 +17,7 @@ export const config = {
   // Optional NewsAPI fallback
   newsApiKey: (process.env.NEWS_API_KEY || process.env.VITE_NEWS_API_KEY || '').trim(),
   sportsDbApiKey: (process.env.SPORTSDB_API_KEY || '3').trim(),
+  fmpApiKey: (process.env.FMP_API_KEY || 'demo').trim(),
 
   // GDELT (free, no API key required)
   gdeltDocBaseUrl: 'https://api.gdeltproject.org/api/v2/doc/doc',

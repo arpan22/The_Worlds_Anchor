@@ -8,6 +8,8 @@ export default function Topbar({
   onSelectCountry,
   isOpen,
   setIsOpen,
+  isMarketsOpen = false,
+  onToggleMarkets,
 }) {
   const dropdownRef = useRef(null);
 
@@ -24,32 +26,40 @@ export default function Topbar({
 
   return (
     <div className="topbar" ref={dropdownRef}>
-      <div className="topbar__box">
-        <input
-          className="topbar__search"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder="Search…"
-        />
+      <div className="topbar__left">
+        <div className="topbar__box">
+          <input
+            className="topbar__search"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            placeholder="Search…"
+          />
 
-        {isOpen && results.length > 0 && (
-          <div className="topbar__dropdown">
-            {results.map((country) => (
-              <div
-                key={country.properties.name}
-                className="topbar__item"
-                onClick={() => onSelectCountry(country)}
-              >
-                {country.properties.name}
-              </div>
-            ))}
-          </div>
-        )}
+          {isOpen && results.length > 0 && (
+            <div className="topbar__dropdown">
+              {results.map((country) => (
+                <div
+                  key={country.properties.name}
+                  className="topbar__item"
+                  onClick={() => onSelectCountry(country)}
+                >
+                  {country.properties.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+      <button
+        className={`topbar__markets-btn ${isMarketsOpen ? "topbar__markets-btn--active" : ""}`}
+        onClick={onToggleMarkets}
+      >
+        Markets
+      </button>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useGlobeCountries } from "./hooks/useGlobeCountries";
 import { useCountryEvents } from "./hooks/useCountryEvents";
 import { useCountrySession } from "./hooks/useCountrySession";
 import CountryPanel from "./components/CountryPanel";
+import MarketPanel from "./components/MarketPanel";
 
 import { useEffect, useState, useCallback } from "react";
 
@@ -36,10 +37,11 @@ function buildNewsBriefing(country, brief) {
 export default function App() {
   const globe = useGlobeCountries();
   const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'Economy' });
+  const [isMarketOpen, setIsMarketOpen] = useState(false);
   const events = useCountryEvents(globe.selectedCountry, eventFilters);
   const session = useCountrySession(globe.selectedCountry);
 
-  const panelOpen = Boolean(globe.selectedCountry);
+  const panelOpen = Boolean(globe.selectedCountry || isMarketOpen);
 
   const globeWidth = panelOpen ? Math.floor(window.innerWidth * 0.5) : window.innerWidth;
   const globeHeight = window.innerHeight;
@@ -70,29 +72,33 @@ export default function App() {
 
         {panelOpen && (
           <div className="layout__panel">
-            <CountryPanel
-              country={globe.selectedCountry}
-              onClose={globe.clearSelection}
-              articles={events.articles}
-              toneSeries={events.toneSeries}
-              isLoading={events.isLoading}
-              error={events.error}
-              onRefresh={events.refresh}
-              eventFilters={eventFilters}
-              onFiltersChange={setEventFilters}
-              countryInfo={events.countryInfo}
-              // Nemotron session props
-              sessionStatus={session.sessionStatus}
-              brief={session.brief}
-              sessionError={session.error}
-              newsBriefing={newsBriefing}
-              graphData={session.graphData}
-              timelineData={session.timelineData}
-              isGeneratingGraph={session.isGeneratingGraph}
-              isGeneratingTimeline={session.isGeneratingTimeline}
-              onGenerateGraph={session.generateGraph}
-              onGenerateTimeline={session.generateTimeline}
-            />
+            {globe.selectedCountry ? (
+              <CountryPanel
+                country={globe.selectedCountry}
+                onClose={globe.clearSelection}
+                articles={events.articles}
+                toneSeries={events.toneSeries}
+                isLoading={events.isLoading}
+                error={events.error}
+                onRefresh={events.refresh}
+                eventFilters={eventFilters}
+                onFiltersChange={setEventFilters}
+                countryInfo={events.countryInfo}
+                // Nemotron session props
+                sessionStatus={session.sessionStatus}
+                brief={session.brief}
+                sessionError={session.error}
+                newsBriefing={newsBriefing}
+                graphData={session.graphData}
+                timelineData={session.timelineData}
+                isGeneratingGraph={session.isGeneratingGraph}
+                isGeneratingTimeline={session.isGeneratingTimeline}
+                onGenerateGraph={session.generateGraph}
+                onGenerateTimeline={session.generateTimeline}
+              />
+            ) : (
+              <MarketPanel onClose={() => setIsMarketOpen(false)} />
+            )}
           </div>
         )}
       </div>
@@ -103,7 +109,20 @@ export default function App() {
         results={globe.filteredCountries}
         isOpen={globe.isDropdownOpen}
         setIsOpen={globe.setIsDropdownOpen}
-        onSelectCountry={globe.handleSelectCountry}
+        onSelectCountry={(country) => {
+          setIsMarketOpen(false);
+          globe.handleSelectCountry(country);
+        }}
+        isMarketsOpen={isMarketOpen}
+        onToggleMarkets={() => {
+          setIsMarketOpen((prev) => {
+            const next = !prev;
+            if (next) {
+              globe.clearSelection();
+            }
+            return next;
+          });
+        }}
       />
 
     </>

@@ -374,6 +374,36 @@
   color: rgba(255, 255, 255, 0.92);
 }
 
+.sports-table__team {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sports-table__badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.sports-table__badge-placeholder {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: rgba(42, 120, 139, 0.3);
+  color: #fff;
+  border: 1px solid rgba(42, 120, 139, 0.6);
+}
+
 /* Articles List */
 .panel__articles {
   display: flex;

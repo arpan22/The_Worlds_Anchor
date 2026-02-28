@@ -11,6 +11,7 @@
 import { Router } from 'express';
 import { fetchCountryEvents } from '../services/gdeltService.js';
 import { fetchCountryLeagueTable } from '../services/sportsTableService.js';
+import { fetchGlobalMarketSnapshot, fetchGlobalMarketHistory } from '../services/marketService.js';
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.get('/events', async (req, res) => {
 });
 
 router.get('/sports-table', async (req, res) => {
-  const { country, countryName } = req.query;
+  const { country, countryName, slot = 'primary' } = req.query;
 
   if (!country || typeof country !== 'string' || country.length !== 2) {
     return res.status(400).json({
@@ -61,7 +62,7 @@ router.get('/sports-table', async (req, res) => {
   }
 
   try {
-    const result = await fetchCountryLeagueTable(country, countryName || country.toUpperCase());
+    const result = await fetchCountryLeagueTable(country, countryName || country.toUpperCase(), slot);
     return res.json(result);
   } catch (err) {
     console.error('[/api/sports-table] Error:', err.message);
@@ -71,6 +72,37 @@ router.get('/sports-table', async (req, res) => {
       league: null,
       season: null,
       isFallbackSeason: false,
+    });
+  }
+});
+
+router.get('/markets/global', async (_req, res) => {
+  try {
+    const result = await fetchGlobalMarketSnapshot();
+    return res.json(result);
+  } catch (err) {
+    console.error('[/api/markets/global] Error:', err.message);
+    return res.status(500).json({
+      error: 'Internal server error fetching market snapshot.',
+      source: 'none',
+      lastUpdated: new Date().toISOString(),
+      quotes: [],
+    });
+  }
+});
+
+router.get('/markets/global-history', async (_req, res) => {
+  try {
+    const result = await fetchGlobalMarketHistory();
+    return res.json(result);
+  } catch (err) {
+    console.error('[/api/markets/global-history] Error:', err.message);
+    return res.status(500).json({
+      error: 'Internal server error fetching market history.',
+      source: 'none',
+      lastUpdated: new Date().toISOString(),
+      seriesBySymbol: {},
+      symbols: [],
     });
   }
 });

@@ -1,0 +1,121 @@
+countryCode,countryName,sheetSport,sheetLeague,status,providerLeague,teamCount,error
+ae,United Arab Emirates,Basketball,United Arab Emirates National Basketball League,ok,United Arab Emirates National Basketball League,5,Live secondary standings unavailable; showing verified team reference table.
+af,Afghanistan,Basketball,Afghanistan National Basketball League,missing,,0,Could not find a matching league table source.
+al,Albania,Basketball,Albania National Basketball League,ok,Albania National Basketball League,8,Live secondary standings unavailable; showing verified team reference table.
+ar,Argentina,Basketball,Argentina National Basketball League,ok,Argentina National Basketball League,12,Live secondary standings unavailable; showing verified team reference table.
+at,Austria,Basketball,Austria National Basketball League,ok,Austria National Basketball League,12,Live secondary standings unavailable; showing verified team reference table.
+au,Australia,Cricket,Big Bash League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+az,Azerbaijan,Basketball,Azerbaijan National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ba,Bosnia and Herzegovina,Basketball,Bosnia and Herzegovina National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+bd,Bangladesh,Football,Bangladesh Premier Football League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+be,Belgium,Basketball,Belgium National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+bg,Bulgaria,Basketball,Bulgaria National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+bo,Bolivia,Basketball,Bolivia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+br,Brazil,Volleyball,Brazilian Volleyball Superliga,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+by,Belarus,Basketball,Belarus National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ca,Canada,Basketball,Canadian Elite Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cd,Democratic Republic of the Congo,Basketball,Democratic Republic of the Congo National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cg,Congo,Basketball,Congo National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ch,Switzerland,Basketball,Switzerland National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ci,Cote d'Ivoire,Basketball,Cote d'Ivoire National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cl,Chile,Basketball,Chile National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cn,China,Basketball,China National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+co,Colombia,Basketball,Colombia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cr,Costa Rica,Basketball,Costa Rica National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cu,Cuba,Basketball,Cuba National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cv,Cabo Verde,Basketball,Cabo Verde National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cy,Cyprus,Basketball,Cyprus National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+cz,Czechia,Basketball,Czechia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+de,Germany,Handball,Handball-Bundesliga,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+dk,Denmark,Basketball,Denmark National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+do,Dominican Republic,Basketball,Dominican Republic National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+dz,Algeria,Basketball,Algeria National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ec,Ecuador,Basketball,Ecuador National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ee,Estonia,Basketball,Estonia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+eg,Egypt,Basketball,Egypt National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+es,Spain,Basketball,Spain National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+et,Ethiopia,Basketball,Ethiopia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+fi,Finland,Basketball,Finland National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+fr,France,Rugby Union,Top 14,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+gb,United Kingdom,Rugby Union,Premiership Rugby,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+gh,Ghana,Basketball,Ghana National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+gr,Greece,Basketball,Greece National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+gt,Guatemala,Basketball,Guatemala National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+hn,Honduras,Basketball,Honduras National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+hr,Croatia,Basketball,Croatia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+hu,Hungary,Basketball,Hungary National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+id,Indonesia,Basketball,Indonesia National Basketball League,ok,Indonesia National Basketball League,5,Live secondary standings unavailable; showing verified team reference table.
+ie,Ireland,Basketball,Ireland National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+il,Israel,Basketball,Israel National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+in,India,Football,India Premier Football League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+iq,Iraq,Basketball,Iraq National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ir,Iran,Basketball,Iran National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+is,Iceland,Basketball,Iceland National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+it,Italy,Volleyball,Italy Volleyball League,ok,Italy Volleyball League,12,Live secondary standings unavailable; showing verified team reference table.
+jm,Jamaica,Basketball,Jamaica National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+jo,Jordan,Basketball,Jordan National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+jp,Japan,Football,J1 League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+ke,Kenya,Basketball,Kenya National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+kh,Cambodia,Basketball,Cambodia National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+kp,North Korea,Basketball,North Korea National Basketball League,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+kr,South Korea,Football,K League 1,missing,,0,Secondary sport fetch failed and no verified fallback teams were available.
+kw,Kuwait,Basketball,Kuwait National Basketball League,missing,,0,Too many requests. Please try again later.
+kz,Kazakhstan,Basketball,Kazakhstan National Basketball League,missing,,0,Too many requests. Please try again later.
+la,Laos,Basketball,Laos National Basketball League,missing,,0,Too many requests. Please try again later.
+lb,Lebanon,Basketball,Lebanon National Basketball League,missing,,0,Too many requests. Please try again later.
+lk,Sri Lanka,Football,Sri Lanka Premier Football League,missing,,0,Too many requests. Please try again later.
+lt,Lithuania,Basketball,Lithuania National Basketball League,missing,,0,Too many requests. Please try again later.
+lu,Luxembourg,Basketball,Luxembourg National Basketball League,missing,,0,Too many requests. Please try again later.
+lv,Latvia,Basketball,Latvia National Basketball League,missing,,0,Too many requests. Please try again later.
+ly,Libya,Basketball,Libya National Basketball League,missing,,0,Too many requests. Please try again later.
+ma,Morocco,Basketball,Morocco National Basketball League,missing,,0,Too many requests. Please try again later.
+md,Moldova,Basketball,Moldova National Basketball League,missing,,0,Too many requests. Please try again later.
+mm,Myanmar,Basketball,Myanmar National Basketball League,missing,,0,Too many requests. Please try again later.
+mr,Mauritania,Basketball,Mauritania National Basketball League,missing,,0,Too many requests. Please try again later.
+mu,Mauritius,Basketball,Mauritius National Basketball League,missing,,0,Too many requests. Please try again later.
+mx,Mexico,Basketball,Mexico National Basketball League,missing,,0,Too many requests. Please try again later.
+my,Malaysia,Basketball,Malaysia National Basketball League,missing,,0,Too many requests. Please try again later.
+ng,Nigeria,Basketball,Nigeria National Basketball League,missing,,0,Too many requests. Please try again later.
+ni,Nicaragua,Basketball,Nicaragua National Basketball League,missing,,0,Too many requests. Please try again later.
+nl,Netherlands,Basketball,Netherlands National Basketball League,missing,,0,Too many requests. Please try again later.
+no,Norway,Basketball,Norway National Basketball League,missing,,0,Too many requests. Please try again later.
+np,Nepal,Basketball,Nepal National Basketball League,missing,,0,Too many requests. Please try again later.
+nz,New Zealand,Cricket,Plunket Shield,missing,,0,Too many requests. Please try again later.
+om,Oman,Basketball,Oman National Basketball League,missing,,0,Too many requests. Please try again later.
+pa,Panama,Basketball,Panama National Basketball League,missing,,0,Too many requests. Please try again later.
+pe,Peru,Basketball,Peru National Basketball League,missing,,0,Too many requests. Please try again later.
+ph,Philippines,Basketball,Philippines National Basketball League,missing,,0,Too many requests. Please try again later.
+pk,Pakistan,Football,Pakistan Premier Football League,missing,,0,Too many requests. Please try again later.
+pl,Poland,Volleyball,Poland Volleyball League,missing,,0,Too many requests. Please try again later.
+ps,Palestine,Basketball,Palestine National Basketball League,missing,,0,Too many requests. Please try again later.
+pt,Portugal,Basketball,Portugal National Basketball League,missing,,0,Too many requests. Please try again later.
+py,Paraguay,Basketball,Paraguay National Basketball League,missing,,0,Too many requests. Please try again later.
+qa,Qatar,Basketball,Qatar National Basketball League,missing,,0,Too many requests. Please try again later.
+ro,Romania,Basketball,Romania National Basketball League,missing,,0,Too many requests. Please try again later.
+rs,Serbia,Basketball,Serbia National Basketball League,missing,,0,Too many requests. Please try again later.
+ru,Russia,Basketball,Russia National Basketball League,missing,,0,Too many requests. Please try again later.
+sa,Saudi Arabia,Basketball,Saudi Arabia National Basketball League,missing,,0,Too many requests. Please try again later.
+sd,Sudan,Basketball,Sudan National Basketball League,missing,,0,Too many requests. Please try again later.
+se,Sweden,Basketball,Sweden National Basketball League,missing,,0,Too many requests. Please try again later.
+sg,Singapore,Basketball,Singapore National Basketball League,missing,,0,Too many requests. Please try again later.
+si,Slovenia,Basketball,Slovenia National Basketball League,missing,,0,Too many requests. Please try again later.
+sk,Slovakia,Basketball,Slovakia National Basketball League,missing,,0,Too many requests. Please try again later.
+sv,El Salvador,Basketball,El Salvador National Basketball League,missing,,0,Too many requests. Please try again later.
+sy,Syria,Basketball,Syria National Basketball League,missing,,0,Too many requests. Please try again later.
+sz,Eswatini,Basketball,Eswatini National Basketball League,missing,,0,Too many requests. Please try again later.
+th,Thailand,Basketball,Thailand National Basketball League,missing,,0,Too many requests. Please try again later.
+tn,Tunisia,Basketball,Tunisia National Basketball League,missing,,0,Too many requests. Please try again later.
+tr,Turkey,Basketball,Turkey National Basketball League,missing,,0,Too many requests. Please try again later.
+tw,Taiwan,Basketball,Taiwan National Basketball League,missing,,0,Too many requests. Please try again later.
+tz,Tanzania,Basketball,Tanzania National Basketball League,missing,,0,Too many requests. Please try again later.
+ua,Ukraine,Basketball,Ukraine National Basketball League,missing,,0,Too many requests. Please try again later.
+ug,Uganda,Basketball,Uganda National Basketball League,missing,,0,Too many requests. Please try again later.
+us,United States,Basketball,National Basketball Association (NBA),missing,,0,Too many requests. Please try again later.
+uy,Uruguay,Basketball,Uruguay National Basketball League,missing,,0,Too many requests. Please try again later.
+uz,Uzbekistan,Basketball,Uzbekistan National Basketball League,missing,,0,Too many requests. Please try again later.
+ve,Venezuela,Basketball,Venezuela National Basketball League,missing,,0,Too many requests. Please try again later.
+vn,Vietnam,Basketball,Vietnam National Basketball League,missing,,0,Too many requests. Please try again later.
+ye,Yemen,Basketball,Yemen National Basketball League,missing,,0,Too many requests. Please try again later.
+za,South Africa,Basketball,South Africa National Basketball League,missing,,0,Too many requests. Please try again later.
+zm,Zambia,Basketball,Zambia National Basketball League,missing,,0,Too many requests. Please try again later.
+zw,Zimbabwe,Basketball,Zimbabwe National Basketball League,missing,,0,Too many requests. Please try again later.
