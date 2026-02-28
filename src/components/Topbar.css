@@ -9,16 +9,51 @@
 
   display: flex;
   align-items: center;
+  gap: 16px;
 
   background: #0a0f1e;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 
-  z-index: 10; /* sits above the globe */
+  z-index: 2000; /* keep search and nav above the globe canvas */
+}
+
+/* ─── View navigation tabs ──────────────────────────────────── */
+.topbar__nav {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.topbar__nav-btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.topbar__nav-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.topbar__nav-btn--active {
+  color: #fff;
+  background: rgba(42, 120, 139, 0.25);
+  border-color: rgba(42, 120, 139, 0.5);
 }
 
 .topbar__box {
   position: relative;
-
+  z-index: 2100;
 }
 
 .topbar__search {
@@ -37,11 +72,9 @@
 }
 
 .topbar__dropdown {
-  position: absolute;
-  top: calc(36px + 8px);
-  left: 0;
+  position: fixed;
   width: 360px;
-  max-width: 80vw;
+  max-width: min(80vw, 420px);
 
   max-height: 300px;
   overflow-y: auto;
@@ -50,6 +83,8 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   backdrop-filter: blur(6px);
+  z-index: 2200;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
 }
 
 .topbar__item {

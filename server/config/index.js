@@ -32,6 +32,10 @@ export const config = {
   groqApiKey: process.env.GROQ_API_KEY || '',
   groqModel: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
 
+  // ACLED (conflict & protest data)
+  acledApiKey: (process.env.ACLED_API_KEY || '').trim(),
+  acledEmail: (process.env.ACLED_EMAIL || '').trim(),
+
   // Session
   sessionTtlMs: 10 * 60 * 1000, // 10 minutes default
 

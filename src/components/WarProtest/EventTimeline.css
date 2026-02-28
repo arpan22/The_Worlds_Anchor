@@ -1,0 +1,103 @@
+.warpro-charts {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 16px 6px;
+  background: rgba(8, 12, 26, 0.98);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.warpro-charts--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 13px;
+}
+
+.warpro-charts__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.warpro-charts__summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.warpro-charts__stat {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.warpro-charts__stat--fatal {
+  color: rgba(231, 76, 60, 0.8);
+}
+
+.warpro-charts__stat--range {
+  color: #6fc3ff;
+}
+
+.warpro-charts__row {
+  display: flex;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.warpro-charts__panel {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.warpro-charts__panel--types {
+  flex: 0 0 260px;
+}
+
+.warpro-charts__viz {
+  flex: 1 1 auto;
+  min-height: 180px;
+}
+
+.warpro-charts__title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0 0 4px;
+}
+
+.warpro-chart__tooltip {
+  background: rgba(10, 15, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.warpro-chart__tooltip-label {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 4px;
+  font-size: 11px;
+}
+
+@media (max-width: 768px) {
+  .warpro-charts__row {
+    flex-direction: column;
+  }
+  .warpro-charts__panel--types {
+    flex: 1 1 auto;
+  }
+}

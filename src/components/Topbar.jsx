@@ -1,6 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./Topbar.css";
 
+/**
+ * Topbar — Fixed navigation bar.
+ *
+ * Contains:
+ *  - View tabs: "Country Search" | "War/Protest"
+ *  - Country search input + dropdown (only shown in globe/country-search view)
+ */
 export default function Topbar({
   value,
   onChange,
@@ -8,8 +15,34 @@ export default function Topbar({
   onSelectCountry,
   isOpen,
   setIsOpen,
+  activeView,
+  onViewChange,
 }) {
   const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !inputRef.current) return;
+
+    const updatePosition = () => {
+      if (!inputRef.current) return;
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, value, results.length]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -23,33 +56,53 @@ export default function Topbar({
   }, [setIsOpen]);
 
   return (
-    <div className="topbar" ref={dropdownRef}>
-      <div className="topbar__box">
-        <input
-          className="topbar__search"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder="Search…"
-        />
+    <div className="topbar">
+      {/* View navigation tabs */}
+      <nav className="topbar__nav">
+        <button
+          className={`topbar__nav-btn${activeView === "globe" ? " topbar__nav-btn--active" : ""}`}
+          onClick={() => onViewChange("globe")}
+        >
+          Country Search
+        </button>
+        <button
+          className={`topbar__nav-btn${activeView === "warprotest" ? " topbar__nav-btn--active" : ""}`}
+          onClick={() => onViewChange("warprotest")}
+        >
+          War / Protest
+        </button>
+      </nav>
 
-        {isOpen && results.length > 0 && (
-          <div className="topbar__dropdown">
-            {results.map((country) => (
-              <div
-                key={country.properties.name}
-                className="topbar__item"
-                onClick={() => onSelectCountry(country)}
-              >
-                {country.properties.name}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Country search — only visible in globe view */}
+      {activeView === "globe" && (
+        <div className="topbar__box" ref={dropdownRef}>
+          <input
+            ref={inputRef}
+            className="topbar__search"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            placeholder="Search country…"
+          />
+
+          {isOpen && results.length > 0 && (
+            <div className="topbar__dropdown" style={dropdownStyle || undefined}>
+              {results.map((country) => (
+                <div
+                  key={country.properties.name}
+                  className="topbar__item"
+                  onClick={() => onSelectCountry(country)}
+                >
+                  {country.properties.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

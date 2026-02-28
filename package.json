@@ -5,16 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "cd server && node --watch index.js",
+    "dev:server": "cd server && node index.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "server:install": "cd server && npm install"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-globe.gl": "^2.37.0",
+    "react-leaflet": "^5.0.0",
     "recharts": "^3.7.0",
     "topojson-client": "^3.1.0"
   },
