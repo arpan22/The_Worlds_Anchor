@@ -25,6 +25,7 @@ import eventsRoutes from './routes/events.js';
 import sessionRoutes from './routes/session.js';
 import groqRoutes from './routes/groq.js';
 import acledRoutes from './routes/acled.js';
+import marketsRoutes from './routes/markets.js';
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api', eventsRoutes);
 app.use('/api', sessionRoutes);
 app.use('/api', groqRoutes);
 app.use('/api', acledRoutes);
+app.use('/api', marketsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
