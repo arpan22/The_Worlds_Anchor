@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { fetchGlobalMarketSnapshot, fetchGlobalMarketHistory } from '../services/marketService.js';
+import { fetchGlobalTrends } from '../services/trendsService.js';
 
 const router = Router();
 
@@ -20,6 +21,16 @@ router.get('/markets/global-history', async (_req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message || 'Failed to fetch market history.' });
+  }
+});
+
+// GET /api/markets/trends — global trends snapshot
+router.get('/markets/trends', async (_req, res) => {
+  try {
+    const data = await fetchGlobalTrends();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to fetch global trends.' });
   }
 });
 

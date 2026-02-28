@@ -7,6 +7,7 @@ import { useCountrySession } from "./hooks/useCountrySession";
 import CountryPanel from "./components/CountryPanel";
 import WarProtestView from "./components/WarProtest/WarProtestView";
 import MarketPanel from "./components/MarketPanel";
+import TrendsPanel from "./components/TrendsPanel";
 
 import { useEffect, useState, useCallback } from "react";
 
@@ -44,11 +45,12 @@ export default function App() {
 
   const globe = useGlobeCountries();
   const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'Economy' });
+  const [isTrendsOpen, setIsTrendsOpen] = useState(false);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const events = useCountryEvents(globe.selectedCountry, eventFilters);
   const session = useCountrySession(globe.selectedCountry);
 
-  const panelOpen = Boolean(globe.selectedCountry || isMarketOpen);
+  const panelOpen = Boolean(globe.selectedCountry || isMarketOpen || isTrendsOpen);
 
   const globeWidth = panelOpen ? Math.floor(window.innerWidth * 0.5) : window.innerWidth;
   const globeHeight = window.innerHeight;
@@ -109,15 +111,28 @@ export default function App() {
           setIsOpen={globe.setIsDropdownOpen}
           onSelectCountry={(country) => {
             setIsMarketOpen(false);
+            setIsTrendsOpen(false);
             globe.handleSelectCountry(country);
           }}
           activeView={activeView}
           onViewChange={handleViewChange}
+          isTrendsOpen={isTrendsOpen}
+          onToggleTrends={() => {
+            setIsTrendsOpen((prev) => {
+              const next = !prev;
+              if (next) {
+                setIsMarketOpen(false);
+                globe.clearSelection();
+              }
+              return next;
+            });
+          }}
           isMarketsOpen={isMarketOpen}
           onToggleMarkets={() => {
             setIsMarketOpen((prev) => {
               const next = !prev;
               if (next) {
+                setIsTrendsOpen(false);
                 globe.clearSelection();
               }
               return next;
@@ -167,7 +182,10 @@ export default function App() {
                   onGenerateTimeline={session.generateTimeline}
                 />
               ) : (
-                <MarketPanel onClose={() => setIsMarketOpen(false)} />
+                <>
+                  {isMarketOpen && <MarketPanel onClose={() => setIsMarketOpen(false)} />}
+                  {isTrendsOpen && <TrendsPanel onClose={() => setIsTrendsOpen(false)} />}
+                </>
               )}
             </div>
           )}

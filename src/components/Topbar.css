@@ -125,3 +125,10 @@
   border-color: rgba(240, 127, 22, 0.75);
   background: rgba(240, 127, 22, 0.22);
 }
+
+.topbar__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -75,6 +75,14 @@ export async function fetchGlobalMarketsHistory() {
   return apiFetch('/markets/global-history');
 }
 
+/**
+ * Fetch global Google-trends-style snapshot.
+ * GET /api/markets/trends
+ */
+export async function fetchGlobalTrends() {
+  return apiFetch('/markets/trends');
+}
+
 // ─── Country Session ───────────────────────────────────────
 
 /**

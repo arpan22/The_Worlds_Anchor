@@ -7,7 +7,7 @@ import "./Topbar.css";
  * Contains:
  *  - View tabs: "Country Search" | "War/Protest"
  *  - Country search input + dropdown (only shown in globe/country-search view)
- *  - Markets toggle button
+ *  - Trends + Markets toggle buttons
  */
 export default function Topbar({
   value,
@@ -18,6 +18,8 @@ export default function Topbar({
   setIsOpen,
   activeView,
   onViewChange,
+  isTrendsOpen = false,
+  onToggleTrends,
   isMarketsOpen = false,
   onToggleMarkets,
 }) {
@@ -107,12 +109,20 @@ export default function Topbar({
         </button>
       </nav>
 
-      <button
-        className={`topbar__markets-btn ${isMarketsOpen ? "topbar__markets-btn--active" : ""}`}
-        onClick={onToggleMarkets}
-      >
-        Markets
-      </button>
+      <div className="topbar__actions">
+        <button
+          className={`topbar__markets-btn ${isTrendsOpen ? "topbar__markets-btn--active" : ""}`}
+          onClick={onToggleTrends}
+        >
+          Trends
+        </button>
+        <button
+          className={`topbar__markets-btn ${isMarketsOpen ? "topbar__markets-btn--active" : ""}`}
+          onClick={onToggleMarkets}
+        >
+          Markets
+        </button>
+      </div>
     </div>
   );
 }
