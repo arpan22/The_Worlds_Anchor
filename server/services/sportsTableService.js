@@ -538,7 +538,10 @@ function resolveLeaguePref(code, countryName, slot = 'primary') {
     const sheetRecord = getSecondarySportRecord(countryName, code);
     if (sheetRecord) {
       const normalizedSport = normalizeSheetSport(sheetRecord.sport);
+      // Merge in SECONDARY_LEAGUE_PREFS[code] so ESPN endpoint config is preserved
+      const basePref = prefs[code] || {};
       return {
+        ...basePref,
         sport: normalizedSport,
         country: String(countryName || sheetRecord.country || '').trim(),
         hints: buildHintsFromLeague(sheetRecord.league),
@@ -803,12 +806,12 @@ function normalizeEspnRow(entry, fallbackPosition) {
   const position = toInt(
     statMap.get('rank')
     ?? statMap.get('standing')
+    ?? statMap.get('playoffseed')
     ?? statMap.get('position')
     ?? fallbackPosition,
     fallbackPosition
   );
 
-  const played = toInt(statMap.get('gamesplayed') ?? statMap.get('gp') ?? statMap.get('played'), 0);
   const win = toInt(statMap.get('wins') ?? statMap.get('w'), 0);
   const draw = toInt(statMap.get('draws') ?? statMap.get('d'), 0);
   const noResult = toInt(
@@ -819,6 +822,11 @@ function normalizeEspnRow(entry, fallbackPosition) {
     0
   );
   const loss = toInt(statMap.get('losses') ?? statMap.get('l'), 0);
+  // played: use explicit stat if available, otherwise W+L (covers NBA/NHL which omit gamesPlayed)
+  const played = toInt(
+    statMap.get('gamesplayed') ?? statMap.get('gp') ?? statMap.get('played'),
+    win + loss
+  );
   const points = toInt(
     statMap.get('points')
     ?? statMap.get('pts')
