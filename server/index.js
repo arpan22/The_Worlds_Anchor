@@ -5,26 +5,25 @@
  *   GET  /api/news                           — NewsAPI proxy
  *   POST /api/country-session                — Create session + trigger Nemotron pipeline
  *   GET  /api/country-session/:id/status     — Poll brief status
- *   POST /api/country-session/:id/chat       — RAG chat (Nemotron + optional Gemini fallback)
+ *   POST /api/groq/chat                      — Standalone Groq chat
  *
  * NVIDIA Integration (primary):
  *   NemotronClient → NVIDIA NIM (build.nvidia.com)
  *   Chat + summarization via Nemotron
  *   Embeddings via nvidia/nv-embedqa-e5-v5
  *
- * Gemini Integration (fallback only):
- *   GeminiSearchClient → Google Gemini (web-grounded search)
- *   Used ONLY when news context is insufficient
- *   Output compressed and fed as context into Nemotron
+ * Groq Integration:
+ *   GroqClient → Groq standalone chat
  */
 import express from 'express';
 import cors from 'cors';
 import { config } from './config/index.js';
 import { NemotronClient } from './services/NemotronClient.js';
-import { GeminiSearchClient } from './services/GeminiSearchClient.js';
+import { GroqClient } from './services/GroqClient.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import eventsRoutes from './routes/events.js';
 import sessionRoutes from './routes/session.js';
+import groqRoutes from './routes/groq.js';
 
 const app = express();
 
@@ -39,27 +38,26 @@ app.use(rateLimiter({ windowMs: 60_000, maxRequests: 60 }));
 const nemotron = new NemotronClient(config);
 app.locals.nemotron = nemotron;
 
-// ─── Google Gemini Client (web-grounded search fallback) ───
+// ─── Groq Client (standalone chat) ─────────────────────────
 
-const gemini = new GeminiSearchClient(config);
-app.locals.gemini = gemini;
+const groq = new GroqClient(config);
+app.locals.groq = groq;
 
 // ─── Routes ────────────────────────────────────────────────
 
 app.use('/api', eventsRoutes);
 app.use('/api', sessionRoutes);
+app.use('/api', groqRoutes);
 
 // Health check
-app.get('/api/health', async (_req, res) => {
-  const nvidiaOk = config.nvidiaApiKey ? await nemotron.healthCheck() : false;
-  const geminiOk = config.geminiApiKey ? await gemini.healthCheck() : false;
+app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
-    nvidia: nvidiaOk ? 'connected' : 'unavailable',
-    gemini: geminiOk ? 'connected' : 'unavailable',
+    nvidia: config.nvidiaApiKey ? 'configured' : 'unavailable',
+    groq: config.groqApiKey ? 'configured' : 'unavailable',
     nemotronModel: config.nemotronModel,
     embeddingModel: config.embeddingModel,
-    geminiModel: config.geminiModel,
+    groqModel: config.groqModel,
     gdelt: 'free',
   });
 });
@@ -81,10 +79,10 @@ app.listen(config.port, () => {
 ║  Port:       ${String(config.port).padEnd(35)}║
 ║  Nemotron:   ${config.nemotronModel.padEnd(35).slice(0, 35)}║
 ║  Embeddings: ${config.embeddingModel.padEnd(35).slice(0, 35)}║
-║  Gemini:     ${config.geminiModel.padEnd(35).slice(0, 35)}║
+║  Groq:       ${config.groqModel.padEnd(35).slice(0, 35)}║
 ║  GDELT:      ${'free, no key needed'.padEnd(35)}║
 ║  NVIDIA:     ${(config.nvidiaApiKey ? 'configured' : 'MISSING').padEnd(35)}║
-║  Gemini key: ${(config.geminiApiKey ? 'configured' : 'MISSING').padEnd(35)}║
+║  Groq key:   ${(config.groqApiKey ? 'configured' : 'MISSING').padEnd(35)}║
 ╚══════════════════════════════════════════════════╝
   `);
 });

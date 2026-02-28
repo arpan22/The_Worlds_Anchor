@@ -2,13 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import './ChatPanel.css';
 
 /**
- * ChatPanel — RAG-grounded chat powered by NVIDIA Nemotron.
- *
- * Visually distinguishes between:
- *   - "Answered from news sources" (news-only)
- *   - "Expanded with web sources (Gemini)" (augmented)
- *
- * Citations are split into news (orange) and web (blue) categories.
+ * ChatPanel — country chat powered by Gemini.
  */
 export default function ChatPanel({
   messages,
@@ -41,7 +35,7 @@ export default function ChatPanel({
   return (
     <section className="chat">
       <h3 className="chat__heading">
-        <span className="chat__nvidia-badge">Nemotron RAG</span>
+        <span className="chat__nvidia-badge">Google Gemini</span>
         Ask about the news
       </h3>
 
@@ -57,7 +51,7 @@ export default function ChatPanel({
         {!disabled && messages.length === 0 && (
           <div className="chat__empty">
             Ask any question about this country&apos;s current news.
-            Answers are grounded in retrieved article context.
+            Responses come from the current Gemini chat session.
           </div>
         )}
 
@@ -73,7 +67,9 @@ export default function ChatPanel({
                   : msg.sourceType === 'gemini_failed' ? 'failed'
                   : 'news'
               }`}>
-                {msg.sourceType === 'augmented_with_web'
+                {msg.sourceType === 'gemini'
+                  ? 'Answered by Gemini'
+                  : msg.sourceType === 'augmented_with_web'
                   ? 'Expanded with web sources (Gemini)'
                   : msg.sourceType === 'gemini_failed'
                   ? 'Gemini unavailable — news sources only'

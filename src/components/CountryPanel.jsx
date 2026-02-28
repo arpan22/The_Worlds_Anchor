@@ -1,6 +1,6 @@
 import { useState } from "react";
 import CountryBrief from "./CountryBrief";
-import ChatPanel from "./ChatPanel";
+import GroqChatWidget from "./GroqChatWidget";
 import "./CountryPanel.css";
 
 const TRENDING_COUNT = 3;
@@ -100,9 +100,7 @@ export default function CountryPanel({
   sessionStatus = 'idle',
   brief = null,
   sessionError = null,
-  chatMessages = [],
-  isChatSending = false,
-  onChatSend,
+  newsBriefing = '',
   // Graph / timeline
   graphData = null,
   timelineData = null,
@@ -117,13 +115,6 @@ export default function CountryPanel({
 
   const trendingArticles = articles.slice(0, TRENDING_COUNT);
   const regularArticles = articles.slice(TRENDING_COUNT);
-
-  const chatDisabled = sessionStatus !== 'ready';
-  const chatDisabledReason =
-    sessionStatus === 'building' ? 'Building brief with NVIDIA Nemotron...'
-    : sessionStatus === 'error'   ? 'Brief generation failed — chat unavailable.'
-    : sessionStatus === 'idle'    ? 'Initializing session...'
-    : '';
 
   function handleFilterChange(key, value) {
     onFiltersChange?.({ ...eventFilters, [key]: value });
@@ -296,13 +287,7 @@ export default function CountryPanel({
             </section>
 
             <section className="panel__section">
-              <ChatPanel
-                messages={chatMessages}
-                isSending={isChatSending}
-                onSend={onChatSend}
-                disabled={chatDisabled}
-                disabledReason={chatDisabledReason}
-              />
+              <GroqChatWidget newsBriefing={newsBriefing} />
             </section>
           </>
         )}

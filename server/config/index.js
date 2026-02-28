@@ -2,7 +2,7 @@
  * Server Configuration
  *
  * Loads environment variables and exports a typed config object.
- * All NVIDIA NIM / Nemotron and Gemini settings are centralized here.
+ * All NVIDIA NIM / Nemotron and Groq settings are centralized here.
  */
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -24,9 +24,9 @@ export const config = {
   nemotronModel: process.env.NEMOTRON_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1',
   embeddingModel: process.env.NVIDIA_EMBED_MODEL || 'nvidia/nv-embedqa-e5-v5',
 
-  // Google Gemini (web-grounded search fallback ONLY)
-  geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  // Groq (standalone chat)
+  groqApiKey: process.env.GROQ_API_KEY || '',
+  groqModel: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
 
   // Session
   sessionTtlMs: 10 * 60 * 1000, // 10 minutes default
@@ -38,13 +38,8 @@ export const config = {
 
   // Token budgets (hard caps)
   defaults: {
-    geminiMaxInputTokens: 2000,
-    geminiMaxOutputTokens: 1000,
+    groqMaxOutputTokens: 300,
     nemotronMaxContextTokens: 4000,
-    geminiEnabled: true,
     cacheDurationMinutes: 10,
   },
-
-  // Confidence threshold — below this, Gemini fallback triggers
-  ragConfidenceThreshold: 0.25,
 };

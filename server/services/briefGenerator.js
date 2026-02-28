@@ -122,6 +122,12 @@ function parseBriefResponse(raw) {
       topics: Array.isArray(parsed.topics) ? parsed.topics : [],
     };
   } catch {
+    const recovered = recoverBriefResponse(cleaned);
+    if (recovered) {
+      console.warn('[BriefGen] Recovered malformed Nemotron JSON.');
+      return recovered;
+    }
+
     // If JSON parsing fails, create a simple brief from the raw text
     console.warn('[BriefGen] Failed to parse Nemotron JSON, using raw text fallback.');
     return {
@@ -130,4 +136,65 @@ function parseBriefResponse(raw) {
       topics: [],
     };
   }
+}
+
+function recoverBriefResponse(raw) {
+  try {
+    const bulletsMatch = raw.match(/"bullets"\s*:\s*\[([\s\S]*?)\]\s*,\s*"narrative"/i);
+    const narrativeMatch = raw.match(/"narrative"\s*:\s*([\s\S]*?)\s*,\s*"topics"\s*:/i);
+    const topicsMatch = raw.match(/"topics"\s*:\s*(\[[\s\S]*\])\s*}?$/i);
+
+    const bullets = bulletsMatch ? extractQuotedStrings(bulletsMatch[1]) : [];
+    const narrative = narrativeMatch ? extractNarrative(narrativeMatch[1]) : '';
+    const topics = topicsMatch ? extractTopics(topicsMatch[1]) : [];
+
+    if (bullets.length === 0 && !narrative && topics.length === 0) {
+      return null;
+    }
+
+    return { bullets, narrative, topics };
+  } catch {
+    return null;
+  }
+}
+
+function extractQuotedStrings(block) {
+  return [...block.matchAll(/"((?:\\.|[^"\\])*)"/g)]
+    .map((match) => unescapeJsonString(match[1]).trim())
+    .filter(Boolean);
+}
+
+function extractNarrative(block) {
+  const trimmed = block.trim();
+
+  if (trimmed.startsWith('"')) {
+    const quoted = trimmed.match(/^"([\s\S]*)"$/);
+    if (quoted) {
+      return unescapeJsonString(quoted[1]).trim().replace(/\n{3,}/g, '\n\n');
+    }
+  }
+
+  return trimmed
+    .replace(/^,\s*/, '')
+    .replace(/,$/, '')
+    .trim()
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+function extractTopics(block) {
+  return [...block.matchAll(/\{\s*"name"\s*:\s*"((?:\\.|[^"\\])*)"\s*,\s*"description"\s*:\s*"((?:\\.|[^"\\])*)"\s*\}/g)]
+    .map((match) => ({
+      name: unescapeJsonString(match[1]).trim(),
+      description: unescapeJsonString(match[2]).trim(),
+    }))
+    .filter((topic) => topic.name && topic.description);
+}
+
+function unescapeJsonString(value) {
+  return value
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\\/g, '\\');
 }
