@@ -1,0 +1,187 @@
+/* ─── Root container ────────────────────────────────────────────────────── */
+.warpro {
+  position: fixed;
+  top: 56px; /* below topbar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0a0f1e;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ─── Error banner ──────────────────────────────────────────────────────── */
+.warpro__error {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  background: rgba(231, 76, 60, 0.12);
+  border-bottom: 1px solid rgba(231, 76, 60, 0.25);
+  font-size: 13px;
+}
+
+.warpro__error-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.warpro__error strong {
+  display: block;
+  color: rgba(231, 76, 60, 0.9);
+  margin-bottom: 2px;
+}
+
+.warpro__error p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.warpro__error-help {
+  margin-top: 4px !important;
+}
+
+.warpro__error-help code {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.warpro__error a {
+  color: #3498db;
+}
+
+/* ─── Main content row (map + details) ─────────────────────────────────── */
+.warpro__main {
+  display: flex;
+  flex: 0 0 44vh;
+  min-height: 320px;
+  max-height: 44vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ─── Map area ──────────────────────────────────────────────────────────── */
+.warpro__map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.warpro__map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(8, 12, 26, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.warpro__mode-btn {
+  padding: 3px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.warpro__mode-btn:hover {
+  border-color: rgba(52, 152, 219, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.warpro__mode-btn--active {
+  background: rgba(52, 152, 219, 0.2);
+  border-color: rgba(52, 152, 219, 0.6);
+  color: #3498db;
+}
+
+.warpro__map-loading {
+  font-size: 11px;
+  color: rgba(52, 152, 219, 0.7);
+  animation: warpro-blink 1s ease-in-out infinite;
+}
+
+.warpro__map-count {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-left: 4px;
+}
+
+.warpro__selected-country {
+  font-size: 11px;
+  color: #f6c453;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(246, 196, 83, 0.12);
+  border: 1px solid rgba(246, 196, 83, 0.22);
+}
+
+.warpro__source-badge {
+  margin-left: auto;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+@keyframes warpro-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────────── */
+.warpro__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.warpro__footer-link {
+  color: rgba(52, 152, 219, 0.6);
+  text-decoration: none;
+}
+
+.warpro__footer-link:hover {
+  text-decoration: underline;
+}
+
+.warpro__footer-sep {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+/* ─── Mobile layout ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .warpro__main {
+    flex-direction: column;
+    flex: 1 1 auto;
+    max-height: none;
+  }
+
+  .warpro__map-area {
+    flex: 0 0 42vh;
+  }
+}

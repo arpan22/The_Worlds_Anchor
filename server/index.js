@@ -24,6 +24,7 @@ import { rateLimiter } from './middleware/rateLimiter.js';
 import eventsRoutes from './routes/events.js';
 import sessionRoutes from './routes/session.js';
 import groqRoutes from './routes/groq.js';
+import acledRoutes from './routes/acled.js';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.locals.groq = groq;
 app.use('/api', eventsRoutes);
 app.use('/api', sessionRoutes);
 app.use('/api', groqRoutes);
+app.use('/api', acledRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -55,6 +57,7 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     nvidia: config.nvidiaApiKey ? 'configured' : 'unavailable',
     groq: config.groqApiKey ? 'configured' : 'unavailable',
+    acled: config.acledApiKey && config.acledEmail ? 'configured' : 'missing key/email',
     nemotronModel: config.nemotronModel,
     embeddingModel: config.embeddingModel,
     groqModel: config.groqModel,

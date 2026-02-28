@@ -1,0 +1,140 @@
+.warpro-filters {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(10, 15, 30, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  z-index: 2600;
+}
+
+.warpro-filters__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.warpro-filters__country-wrap {
+  min-width: 160px;
+  z-index: 2700;
+}
+
+.warpro-filters__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.warpro-filters__input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.warpro-filters__input:focus {
+  border-color: rgba(52, 152, 219, 0.7);
+}
+
+.warpro-filters__group--range {
+  min-width: 250px;
+}
+
+.warpro-filters__range-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.warpro-filters__range-pill {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.warpro-filters__range-pill:hover {
+  border-color: rgba(52, 152, 219, 0.45);
+  color: #fff;
+}
+
+.warpro-filters__range-pill--active {
+  background: rgba(52, 152, 219, 0.18);
+  border-color: rgba(52, 152, 219, 0.65);
+  color: #6fc3ff;
+}
+
+.warpro-filters__suggestions {
+  position: fixed;
+  width: 220px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #0d1628;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  z-index: 2800;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.warpro-filters__suggestion-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.warpro-filters__suggestion-item:hover {
+  background: rgba(52, 152, 219, 0.2);
+}
+
+.warpro-filters__status {
+  margin-left: auto;
+  align-self: flex-end;
+  padding-bottom: 4px;
+}
+
+.warpro-filters__count {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.warpro-filters__loading {
+  font-size: 13px;
+  color: rgba(52, 152, 219, 0.7);
+  animation: warpro-pulse 1s ease-in-out infinite;
+}
+
+@keyframes warpro-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (max-width: 768px) {
+  .warpro-filters {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .warpro-filters__status {
+    width: 100%;
+    margin-left: 0;
+  }
+}
