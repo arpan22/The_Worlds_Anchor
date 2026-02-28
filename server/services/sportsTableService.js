@@ -779,15 +779,18 @@ async function fetchEspnStandings(spec) {
 
 function extractEspnEntries(data) {
   const out = [];
-  const push = (entries) => {
-    if (Array.isArray(entries)) out.push(...entries);
+
+  const push = (entries, conference = null) => {
+    if (!Array.isArray(entries)) return;
+    for (const e of entries) out.push(conference ? { ...e, _conference: conference } : e);
   };
 
   push(data?.standings?.entries);
   for (const child of data?.children || []) {
-    push(child?.standings?.entries);
+    const confName = child?.name || null;
+    push(child?.standings?.entries, confName);
     for (const subgroup of child?.children || []) {
-      push(subgroup?.standings?.entries);
+      push(subgroup?.standings?.entries, confName);
     }
   }
 
@@ -848,6 +851,7 @@ function normalizeEspnRow(entry, fallbackPosition) {
     goalsAgainst: toInt(statMap.get('pointsagainst') ?? statMap.get('pa'), 0),
     goalDifference: toInt(statMap.get('pointdifferential') ?? statMap.get('gd'), 0),
     badge: entry?.team?.logos?.[0]?.href || null,
+    conference: entry?._conference || null,
   };
 }
 

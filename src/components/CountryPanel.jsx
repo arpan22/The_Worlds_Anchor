@@ -413,76 +413,99 @@ export default function CountryPanel({
               </section>
             )}
 
-            {isSportsMode && !secondarySportsLoading && secondarySportsTable.length > 0 && secondarySportsMeta.league?.name && (
-              <section className="panel__section">
-                <h3 className="panel__section-title">Secondary League Table</h3>
-                <div className="sports-table-wrap">
-                  {secondarySportsError && secondarySportsTable.length > 0 && (
-                    <div className="sports-table-note">{secondarySportsError}</div>
-                  )}
-                  <div className="sports-table-meta">
-                    <strong>{secondarySportsMeta.league.name}</strong>
-                    <span>
-                      {secondarySportsMeta.season
-                        ? `Season: ${secondarySportsMeta.season}${secondarySportsMeta.isFallbackSeason ? ' (latest available)' : ''}`
-                        : 'Latest available standings'}
-                    </span>
-                  </div>
-                  <div className="sports-table-scroll">
-                    <table className="sports-table">
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>Team</th>
-                          {secondaryTableType === 'soccer' && <th>P</th>}
-                          <th>W</th>
-                          {secondaryTableType === 'soccer' && <th>D</th>}
-                          <th>L</th>
-                          {secondaryTableType === 'cricket' && <th>NR</th>}
-                          {secondaryTableType === 'cricket' && <th>NRR</th>}
-                          <th>Pts</th>
+            {isSportsMode && !secondarySportsLoading && secondarySportsTable.length > 0 && secondarySportsMeta.league?.name && (() => {
+              const hasConferences = secondarySportsTable.some((r) => r.conference);
+              const conferences = hasConferences
+                ? [...new Map(secondarySportsTable.map((r) => [r.conference, true])).keys()]
+                : [null];
+
+              const renderConferenceTable = (rows, prefix) => (
+                <div className="sports-table-scroll">
+                  <table className="sports-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Team</th>
+                        {secondaryTableType === 'soccer' && <th>P</th>}
+                        <th>W</th>
+                        {secondaryTableType === 'soccer' && <th>D</th>}
+                        <th>L</th>
+                        {secondaryTableType === 'cricket' && <th>NR</th>}
+                        {secondaryTableType === 'cricket' && <th>NRR</th>}
+                        <th>Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr key={`${prefix}-${row.position}-${row.team}`}>
+                          <td>{row.position}</td>
+                          <td>
+                            <div className="sports-table__team">
+                              {row.badge && !failedBadges[`${prefix}-${row.position}-${row.team}`] ? (
+                                <img
+                                  src={row.badge}
+                                  alt={`${row.team} emblem`}
+                                  className="sports-table__badge"
+                                  loading="lazy"
+                                  onError={() => {
+                                    const key = `${prefix}-${row.position}-${row.team}`;
+                                    setFailedBadges((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+                                  }}
+                                />
+                              ) : (
+                                <span className="sports-table__badge-placeholder">
+                                  {String(row.team || '?').slice(0, 2).toUpperCase()}
+                                </span>
+                              )}
+                              <span>{row.team}</span>
+                            </div>
+                          </td>
+                          {secondaryTableType === 'soccer' && <td>{row.played}</td>}
+                          <td>{row.win}</td>
+                          {secondaryTableType === 'soccer' && <td>{row.draw}</td>}
+                          <td>{row.loss}</td>
+                          {secondaryTableType === 'cricket' && <td>{row.noResult ?? 0}</td>}
+                          {secondaryTableType === 'cricket' && <td>{formatNrr(row.nrr)}</td>}
+                          <td>{row.points}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {secondarySportsTable.slice(0, 20).map((row) => (
-                          <tr key={`secondary-${row.position}-${row.team}`}>
-                            <td>{row.position}</td>
-                            <td>
-                              <div className="sports-table__team">
-                                {row.badge && !failedBadges[`secondary-${row.position}-${row.team}`] ? (
-                                  <img
-                                    src={row.badge}
-                                    alt={`${row.team} emblem`}
-                                    className="sports-table__badge"
-                                    loading="lazy"
-                                    onError={() => {
-                                      const key = `secondary-${row.position}-${row.team}`;
-                                      setFailedBadges((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
-                                    }}
-                                  />
-                                ) : (
-                                  <span className="sports-table__badge-placeholder">
-                                    {String(row.team || '?').slice(0, 2).toUpperCase()}
-                                  </span>
-                                )}
-                                <span>{row.team}</span>
-                              </div>
-                            </td>
-                            {secondaryTableType === 'soccer' && <td>{row.played}</td>}
-                            <td>{row.win}</td>
-                            {secondaryTableType === 'soccer' && <td>{row.draw}</td>}
-                            <td>{row.loss}</td>
-                            {secondaryTableType === 'cricket' && <td>{row.noResult ?? 0}</td>}
-                            {secondaryTableType === 'cricket' && <td>{formatNrr(row.nrr)}</td>}
-                            <td>{row.points}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </section>
-            )}
+              );
+
+              return (
+                <section className="panel__section">
+                  <h3 className="panel__section-title">Secondary League Table</h3>
+                  <div className="sports-table-wrap">
+                    {secondarySportsError && secondarySportsTable.length > 0 && (
+                      <div className="sports-table-note">{secondarySportsError}</div>
+                    )}
+                    <div className="sports-table-meta">
+                      <strong>{secondarySportsMeta.league.name}</strong>
+                      <span>
+                        {secondarySportsMeta.season
+                          ? `Season: ${secondarySportsMeta.season}${secondarySportsMeta.isFallbackSeason ? ' (latest available)' : ''}`
+                          : 'Latest available standings'}
+                      </span>
+                    </div>
+                    {hasConferences
+                      ? conferences.map((conf) => {
+                          const rows = secondarySportsTable
+                            .filter((r) => r.conference === conf)
+                            .sort((a, b) => a.position - b.position || b.win - a.win);
+                          return (
+                            <div key={conf} className="sports-table__conference-block">
+                              <div className="sports-table__conference-label">{conf}</div>
+                              {renderConferenceTable(rows, `conf-${conf}`)}
+                            </div>
+                          );
+                        })
+                      : renderConferenceTable(secondarySportsTable.slice(0, 20), 'secondary')}
+                  </div>
+                </section>
+              );
+            })()}
 
             {isSportsMode && !sportsProfile && (
               <div className="panel__empty">
