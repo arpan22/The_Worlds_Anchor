@@ -1,6 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchEvents } from '../services/backendApi';
 import { getCountryCode } from '../utils/countryCodes';
+
+const RATE_LIMIT_RETRIES = 2;
+const RATE_LIMIT_BACKOFF_MS = 7000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(message) {
+  const text = String(message || '').toLowerCase();
+  return (
+    text.includes('temporarily rate-limited')
+    || text.includes('rate limit')
+    || text.includes('http 429')
+  );
+}
 
 /**
  * useCountryEvents — Fetches GDELT events for the selected country.
@@ -21,6 +37,8 @@ export function useCountryEvents(selectedCountry, filters = {}, options = {}) {
   const [error, setError] = useState(null);
   const [countryInfo, setCountryInfo] = useState(null);
   const [lastFetched, setLastFetched] = useState(null);
+  const inFlightKeyRef = useRef(null);
+  const lastRequestRef = useRef({ key: null, at: 0 });
 
   const fetchForCountry = useCallback(async (countryName, countryCode) => {
     if (!countryCode) {
@@ -29,17 +47,43 @@ export function useCountryEvents(selectedCountry, filters = {}, options = {}) {
       return;
     }
 
+    const requestKey = `${countryCode}:${countryName}:${dateRange}:${tone}:${eventType}`;
+    const now = Date.now();
+    const recentDuplicate = (
+      lastRequestRef.current.key === requestKey
+      && (now - lastRequestRef.current.at) < 6000
+    );
+
+    if (inFlightKeyRef.current === requestKey || recentDuplicate) {
+      return;
+    }
+
+    inFlightKeyRef.current = requestKey;
+    lastRequestRef.current = { key: requestKey, at: now };
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await fetchEvents({
-        country: countryCode,
-        countryName,
-        dateRange,
-        tone,
-        eventType,
-      });
+      let result = null;
+      let attempt = 0;
+      while (attempt <= RATE_LIMIT_RETRIES) {
+        try {
+          result = await fetchEvents({
+            country: countryCode,
+            countryName,
+            dateRange,
+            tone,
+            eventType,
+          });
+          break;
+        } catch (err) {
+          const canRetry = isRateLimitError(err?.message) && attempt < RATE_LIMIT_RETRIES;
+          if (!canRetry) throw err;
+          attempt += 1;
+          await sleep(RATE_LIMIT_BACKOFF_MS * attempt);
+        }
+      }
 
       if (result.articles && result.articles.length > 0) {
         setArticles(result.articles);
@@ -57,6 +101,9 @@ export function useCountryEvents(selectedCountry, filters = {}, options = {}) {
       setArticles([]);
       setToneSeries([]);
     } finally {
+      if (inFlightKeyRef.current === requestKey) {
+        inFlightKeyRef.current = null;
+      }
       setIsLoading(false);
     }
   }, [dateRange, tone, eventType]);
@@ -91,6 +138,16 @@ export function useCountryEvents(selectedCountry, filters = {}, options = {}) {
     const code = getCountryCode(countryName);
     const info = { name: countryName, code, supported: Boolean(code) };
     setCountryInfo(info);
+
+    // Sports tab uses local country profile data in the frontend.
+    if (eventType === 'Sports') {
+      setArticles([]);
+      setToneSeries([]);
+      setError(null);
+      setIsLoading(false);
+      setLastFetched(new Date());
+      return;
+    }
 
     fetchForCountry(countryName, code);
   }, [selectedCountry, fetchForCountry, clearEvents]);

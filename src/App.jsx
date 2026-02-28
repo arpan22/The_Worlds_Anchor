@@ -6,8 +6,7 @@ import { useCountryEvents } from "./hooks/useCountryEvents";
 import { useCountrySession } from "./hooks/useCountrySession";
 import CountryPanel from "./components/CountryPanel";
 
-import { useEffect, useState } from "react";
-import { fetchCountrySummary } from "./services/CountrySummary";
+import { useEffect, useState, useCallback } from "react";
 
 function buildNewsBriefing(country, brief) {
   if (!brief) return '';
@@ -36,7 +35,7 @@ function buildNewsBriefing(country, brief) {
 
 export default function App() {
   const globe = useGlobeCountries();
-  const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'all' });
+  const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'Economy' });
   const events = useCountryEvents(globe.selectedCountry, eventFilters);
   const session = useCountrySession(globe.selectedCountry);
 
@@ -45,42 +44,12 @@ export default function App() {
   const globeWidth = panelOpen ? Math.floor(window.innerWidth * 0.5) : window.innerWidth;
   const globeHeight = window.innerHeight;
 
-  const [countrySummary, setCountrySummary] = useState(null);
-  const [summaryError, setSummaryError] = useState(null);
   const newsBriefing = buildNewsBriefing(globe.selectedCountry, session.brief);
+
 
   useEffect(() => {
     window.dispatchEvent(new Event("resize"));
   }, [panelOpen]);
-
-
- useEffect(() => {
-    let ignore = false;
-
-    async function run() {
-      if (!globe.selectedCountry) {
-        setCountrySummary(null);
-        setSummaryError(null);
-        return;
-      }
-
-      try {
-        setSummaryError(null);
-        const summary = await fetchCountrySummary(globe.selectedCountry);
-        if (!ignore) setCountrySummary(summary);
-      } catch (e) {
-        if (!ignore) {
-          setCountrySummary(null);
-          setSummaryError(e?.message ?? "Failed to load summary");
-        }
-      }
-    }
-
-    run();
-    return () => {
-      ignore = true;
-    };
-  }, [globe.selectedCountry]);
 
 
 
@@ -103,7 +72,6 @@ export default function App() {
           <div className="layout__panel">
             <CountryPanel
               country={globe.selectedCountry}
-              countrySummary={summaryError ?? countrySummary}
               onClose={globe.clearSelection}
               articles={events.articles}
               toneSeries={events.toneSeries}
@@ -112,6 +80,7 @@ export default function App() {
               onRefresh={events.refresh}
               eventFilters={eventFilters}
               onFiltersChange={setEventFilters}
+              countryInfo={events.countryInfo}
               // Nemotron session props
               sessionStatus={session.sessionStatus}
               brief={session.brief}

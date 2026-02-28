@@ -66,6 +66,7 @@ const COUNTRY_NAME_TO_CODE = {
   // G
   'Germany': 'de',
   'Ghana': 'gh',
+  'Greenland': 'gl',
   'Greece': 'gr',
   'Guatemala': 'gt',
 
@@ -103,6 +104,8 @@ const COUNTRY_NAME_TO_CODE = {
 
   // M
   'Malaysia': 'my',
+  'Mauritania': 'mr',
+  'Mauritius': 'mu',
   'Mexico': 'mx',
   'Morocco': 'ma',
   'Myanmar': 'mm',
@@ -199,7 +202,7 @@ const NEWSAPI_SUPPORTED_COUNTRIES = new Set([
   'pa', 'pe', 'pf', 'pg', 'pk', 'pr', 'ps', 'py', 'qa', 're', 'rw', 'sb', 'sd',
   'sl', 'sm', 'sn', 'so', 'sr', 'ss', 'st', 'sv', 'sz', 'td', 'tg', 'tj', 'tl',
   'tm', 'tn', 'tt', 'tv', 'tz', 'ug', 'uy', 'uz', 'va', 'vc', 'vi', 'vn', 'vu',
-  'xk', 'ye', 'yt', 'zm', 'zw'
+  'xk', 'ye', 'yt', 'zm', 'zw', 'gl'
 ]);
 
 /**
@@ -211,26 +214,30 @@ const NEWSAPI_SUPPORTED_COUNTRIES = new Set([
 export function getCountryCode(countryName) {
   if (!countryName) return null;
 
-  // Direct lookup
-  const code = COUNTRY_NAME_TO_CODE[countryName];
-  if (code) return code;
-
-  // Try case-insensitive lookup
-  const lowerName = countryName.toLowerCase();
-  for (const [name, isoCode] of Object.entries(COUNTRY_NAME_TO_CODE)) {
-    if (name.toLowerCase() === lowerName) {
-      return isoCode;
-    }
+  // Direct lookup first (fast path).
+  if (COUNTRY_NAME_TO_CODE[countryName]) {
+    return COUNTRY_NAME_TO_CODE[countryName];
   }
 
-  // Try partial match (for variations in naming)
+  // Exact lookup on normalized names only (no fuzzy/partial matching).
+  const normalizedInput = normalizeCountryName(countryName);
   for (const [name, isoCode] of Object.entries(COUNTRY_NAME_TO_CODE)) {
-    if (name.toLowerCase().includes(lowerName) || lowerName.includes(name.toLowerCase())) {
+    if (normalizeCountryName(name) === normalizedInput) {
       return isoCode;
     }
   }
 
   return null;
+}
+
+function normalizeCountryName(name) {
+  return String(name || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]/g, ' ')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

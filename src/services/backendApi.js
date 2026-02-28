@@ -48,6 +48,16 @@ export async function fetchEvents({ country, countryName, dateRange = '7d', tone
   return apiFetch(`/events?${params}`);
 }
 
+/**
+ * Fetch league table used in Sports tab.
+ * GET /api/sports-table?country=us&countryName=United+States
+ */
+export async function fetchSportsTable({ country, countryName }) {
+  const params = new URLSearchParams({ country });
+  if (countryName) params.append('countryName', countryName);
+  return apiFetch(`/sports-table?${params}`);
+}
+
 // ─── Country Session ───────────────────────────────────────
 
 /**
