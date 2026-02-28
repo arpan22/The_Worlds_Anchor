@@ -85,7 +85,11 @@ export function useCountryEvents(selectedCountry, filters = {}, options = {}) {
         }
       }
 
-      if (result.articles && result.articles.length > 0) {
+      if (!result) {
+        setArticles([]);
+        setToneSeries([]);
+        setError(`Server returned an unexpected response for ${countryName}.`);
+      } else if (result.articles && result.articles.length > 0) {
         setArticles(result.articles);
         setToneSeries(result.toneSeries || []);
         setError(result.error || null);
