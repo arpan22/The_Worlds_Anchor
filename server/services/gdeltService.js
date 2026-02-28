@@ -3,19 +3,29 @@
  *
  * No API key required. GDELT is a free, public dataset.
  *
- * Endpoints used:
- *   mode=artlist          — Article list with URL, title, domain, date
- *   mode=timelinetonechart — Tone-over-time series for Recharts
+ * Endpoint used:
+ *   mode=artlist — Article list with URL, title, domain, date
  *
  * Rate limit: Be polite — max ~5 req/sec. Cache results for 8 minutes.
  */
+import { config } from '../config/index.js';
+import https from 'https';
 
 const GDELT_DOC_URL = 'https://api.gdeltproject.org/api/v2/doc/doc';
 const CACHE_TTL_MS = 8 * 60 * 1000; // 8 minutes
-const FETCH_TIMEOUT_MS = 30_000;     // 30 s per request
+const FETCH_TIMEOUT_MS = 10_000;     // 10 s per request
+const MIN_GDELT_INTERVAL_MS = 6_500; // Extra headroom to reduce 429 rate-limit hits
+const GDELT_RATE_LIMIT_BACKOFF_MS = 8_000;
+const CACHE_SCHEMA_VERSION = 'v4-country-topic-balanced';
 
 // In-memory cache: key → { articles, toneSeries, expiresAt }
 const _cache = new Map();
+// Last successful country payloads (used when live fetch is rate-limited).
+const _lastSuccessByCountry = new Map();
+// In-flight request dedupe: key -> Promise<{ articles, toneSeries, error }>
+const _inflight = new Map();
+let _lastGdeltRequestAt = 0;
+let _gdeltQueue = Promise.resolve();
 
 // ── Country centroids (ISO-2 → [lat, lng]) ────────────────
 const COUNTRY_CENTROIDS = {
@@ -85,7 +95,32 @@ const EVENT_TYPE_PATTERNS = [
     words: ['economy', 'inflation', 'gdp', 'stock', 'market', 'bank', 'trade',
       'price', 'jobs', 'unemployment', 'fiscal', 'budget', 'currency',
       'debt', 'revenue', 'export', 'import', 'finance', 'investment',
-      'growth', 'recession', 'crypto', 'oil', 'energy'],
+      'growth', 'recession', 'crypto', 'oil', 'energy', 'business', 'tariff',
+      'interest rate', 'rate cut', 'rate hike', 'central bank', 'federal reserve',
+      'ecb', 'imf', 'world bank', 'bond', 'yield', 'treasury', 'earnings',
+      'quarterly results', 'merger', 'acquisition', 'ipo', 'startup', 'manufacturing',
+      'industrial output', 'supply chain', 'consumer spending', 'retail sales',
+      'housing market', 'real estate', 'mortgage', 'commodity', 'gold', 'gas',
+      'electricity prices', 'shipping', 'logistics', 'trade deficit', 'surplus',
+      'sanctions', 'subsidy', 'tax', 'wages', 'salary', 'cost of living'],
+  },
+  {
+    type: 'Crime',
+    words: ['crime', 'murder', 'homicide', 'robbery', 'theft', 'fraud', 'scam',
+      'gang', 'cartel', 'kidnap', 'kidnapping', 'arrest', 'police', 'court',
+      'trial', 'sentence', 'prison', 'jail', 'investigation', 'corruption'],
+  },
+  {
+    type: 'Sports',
+    words: ['sport', 'football', 'soccer', 'basketball', 'tennis', 'cricket',
+      'baseball', 'hockey', 'olympic', 'fifa', 'uefa', 'nba', 'nfl', 'mlb',
+      'championship', 'tournament', 'athlete', 'coach', 'match', 'league',
+      'world cup', 'champions league', 'europa league', 'premier league', 'la liga',
+      'serie a', 'bundesliga', 'ligue 1', 'grand slam', 'atp', 'wta', 'formula 1',
+      'f1', 'motogp', 'ufc', 'boxing', 'mma', 'golf', 'pga', 'lpga', 'rugby',
+      'volleyball', 'badminton', 'table tennis', 'esports', 'medal', 'playoff',
+      'final', 'semifinal', 'quarterfinal', 'draw', 'fixture', 'transfer', 'draft',
+      'manager', 'club', 'team', 'goal', 'hat-trick', 'penalty'],
   },
   {
     type: 'Politics',
@@ -109,11 +144,52 @@ const EVENT_TYPE_PATTERNS = [
   {
     type: 'Society',
     words: ['health', 'education', 'school', 'university', 'hospital',
-      'crime', 'culture', 'sport', 'social', 'community', 'religious',
+      'culture', 'social', 'community', 'religious',
       'church', 'mosque', 'protest', 'human rights', 'migrant',
       'refugee', 'poverty', 'covid', 'virus', 'vaccine', 'police'],
   },
 ];
+
+const SPORTS_STRONG_TERMS = [
+  'football', 'soccer', 'basketball', 'tennis', 'cricket', 'baseball', 'hockey',
+  'rugby', 'golf', 'boxing', 'mma', 'ufc', 'formula 1', 'f1', 'motogp',
+  'olympic', 'fifa', 'uefa', 'nba', 'nfl', 'mlb', 'nhl', 'world cup',
+  'champions league', 'europa league', 'premier league', 'la liga', 'serie a',
+  'bundesliga', 'ligue 1', 'grand slam', 'atp', 'wta', 'pga', 'lpga',
+  'playoff', 'quarterfinal', 'semifinal', 'final', 'hat-trick',
+];
+
+const SPORTS_WEAK_TERMS = [
+  'athlete', 'coach', 'match', 'league', 'tournament', 'championship', 'club',
+  'team', 'goal', 'penalty', 'fixture', 'transfer', 'draft',
+];
+
+const SPORTS_EXCLUSION_TERMS = [
+  'election', 'parliament', 'prime minister', 'president', 'congress',
+  'senate', 'inflation', 'gdp', 'interest rate', 'bank', 'central bank',
+  'trade deficit', 'homicide', 'murder', 'fraud', 'corruption', 'court',
+  'trial', 'police', 'arrest', 'sentence', 'investigation', 'earthquake',
+  'wildfire', 'hurricane',
+];
+
+const COUNTRY_TOPIC_ALIASES = {
+  US: ['united states', 'u.s.', 'usa', 'america', 'american'],
+  GB: ['united kingdom', 'uk', 'britain', 'british', 'england'],
+  AE: ['united arab emirates', 'uae', 'emirati'],
+  KR: ['south korea', 'korea', 'korean'],
+  KP: ['north korea', 'korea', 'korean'],
+  CZ: ['czech republic', 'czechia', 'czech'],
+  DO: ['dominican republic', 'dominican'],
+  SV: ['el salvador', 'salvadoran'],
+  FR: ['france', 'french'],
+  ES: ['spain', 'spanish'],
+  AT: ['austria', 'austrian'],
+  AU: ['australia', 'australian'],
+  CN: ['china', 'chinese'],
+  DE: ['germany', 'german'],
+  IT: ['italy', 'italian'],
+  PT: ['portugal', 'portuguese'],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Low-level fetch helpers
@@ -121,19 +197,31 @@ const EVENT_TYPE_PATTERNS = [
 
 /** fetch() with an AbortController timeout so we never hang indefinitely. */
 async function fetchWithTimeout(url, timeoutMs = FETCH_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
+  await waitForGdeltSlot();
+
+  const { statusCode, body } = await httpGetWithTimeout(url, timeoutMs, {
+    Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
+    'User-Agent': 'News-Globe/1.0 (+https://localhost)',
+  });
+
+  return {
+    ok: statusCode >= 200 && statusCode < 300,
+    status: statusCode,
+    text: async () => body,
+  };
 }
 
 /** Safely read JSON from a Response — returns null instead of throwing. */
 async function safeJson(res) {
   try {
-    return await res.json();
+    const text = await res.text();
+    if (!text) return null;
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { __rawText: text };
+    }
   } catch {
     return null;
   }
@@ -149,7 +237,7 @@ async function safeJson(res) {
  * @param {string} countryCode - ISO-2 code (e.g. "us")
  * @param {string} countryName - Full name (e.g. "United States")
  * @param {object} opts
- * @param {'24h'|'3d'|'7d'|'30d'} [opts.dateRange='7d']
+ * @param {'24h'|'3d'|'7d'|'14d'|'30d'} [opts.dateRange='7d']
  * @param {'all'|'positive'|'neutral'|'negative'} [opts.tone='all']
  * @param {string} [opts.eventType='all']
  * @param {number} [opts.maxRecords=75]
@@ -163,43 +251,69 @@ export async function fetchCountryEvents(countryCode, countryName, opts = {}) {
     maxRecords = 75,
   } = opts;
 
-  const cacheKey = `${countryName.toLowerCase()}:${dateRange}`;
+  const cacheKey = `${CACHE_SCHEMA_VERSION}:${normalizeKey(countryName || countryCode)}:${dateRange}`;
+  const countryKey = `${CACHE_SCHEMA_VERSION}:${normalizeKey(countryName || countryCode)}`;
   const cached = _cache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     const filtered = applyFilters(cached.articles, tone, eventType);
     return { articles: filtered, toneSeries: cached.toneSeries, error: null };
   }
+  const stale = cached || null;
 
-  const timespan = dateRangeToTimespan(dateRange);
-
-  // Sequential fetches — GDELT rate-limits concurrent requests from the same IP.
-  const articlesResult = await fetchGdeltArticles(countryName, { timespan, maxRecords });
-  const toneSeries = await fetchGdeltToneSeries(countryName, timespan);
-
-  if (articlesResult.error && articlesResult.articles.length === 0) {
-    return { articles: [], toneSeries: [], error: articlesResult.error };
+  let basePromise = _inflight.get(cacheKey);
+  if (!basePromise) {
+    const timespan = dateRangeToTimespan(dateRange);
+    basePromise = fetchCountryEventsBase(countryCode, countryName, {
+      timespan,
+      eventType: 'all',
+      maxRecords,
+      cacheKey,
+    });
+    _inflight.set(cacheKey, basePromise);
   }
 
-  const coords = COUNTRY_CENTROIDS[countryCode?.toUpperCase()] || null;
-  const normalized = articlesResult.articles.map((raw, i) =>
-    transformGdeltArticle(raw, i, countryName, coords)
-  );
-
-  _cache.set(cacheKey, {
-    articles: normalized,
-    toneSeries,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-
-  const filtered = applyFilters(normalized, tone, eventType);
-  return { articles: filtered, toneSeries, error: null };
+  const base = await basePromise;
+  if (base.error && stale && stale.articles?.length) {
+    const filteredStale = applyFilters(stale.articles, tone, eventType);
+    return {
+      articles: filteredStale,
+      toneSeries: stale.toneSeries || [],
+      error: 'Using cached events because live fetch timed out.',
+    };
+  }
+  if (base.error && !stale) {
+    const last = _lastSuccessByCountry.get(countryKey);
+    if (last?.articles?.length) {
+      const filteredLast = applyFilters(last.articles, tone, eventType);
+      return {
+        articles: filteredLast,
+        toneSeries: last.toneSeries || [],
+        error: 'Using previously cached country events because live source is rate-limited.',
+      };
+    }
+    const message = normalizeLiveError(base.error);
+    return {
+      articles: [],
+      toneSeries: [],
+      error: message,
+    };
+  }
+  const filtered = applyFilters(base.articles, tone, eventType);
+  if (filtered.length === 0 && eventType !== 'all' && base.articles?.length > 0) {
+    return {
+      articles: applyFilters(base.articles, tone, 'all').slice(0, 25),
+      toneSeries: base.toneSeries,
+      error: `No ${eventType} outlets found right now; showing latest in-country sources instead.`,
+    };
+  }
+  return { articles: filtered, toneSeries: base.toneSeries, error: base.error };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchGdeltArticles(countryName, { timespan, maxRecords }) {
+async function fetchGdeltArticles(countryCode, countryName, { timespan, eventType, maxRecords }) {
   const baseParams = {
     mode: 'artlist',
     maxrecords: String(maxRecords),
@@ -208,76 +322,100 @@ async function fetchGdeltArticles(countryName, { timespan, maxRecords }) {
     format: 'json',
   };
 
+  const queries = buildGdeltQueries(countryCode, countryName, eventType);
+  let lastError = null;
+  const combined = [];
+  const seen = new Set();
+
   try {
-    // First attempt: English-language articles only
-    const p1 = new URLSearchParams({ ...baseParams, query: `"${countryName}" sourcelang:English` });
-    const res1 = await fetchWithTimeout(`${GDELT_DOC_URL}?${p1}`);
-    if (!res1.ok) throw new Error(`GDELT responded with HTTP ${res1.status}`);
+    for (const query of queries) {
+      const params = new URLSearchParams({ ...baseParams, query });
+      const res = await fetchWithBackoffOn429(`${GDELT_DOC_URL}?${params}`);
+      if (!res.ok) {
+        lastError = `GDELT responded with HTTP ${res.status}`;
+        continue;
+      }
 
-    const data1 = await safeJson(res1);
-    const articles = data1?.articles || [];
+      const data = await safeJson(res);
+      if (isGdeltRateLimitResponse(data)) {
+        return { articles: [], error: 'GDELT rate limit reached. Please retry in a few seconds.' };
+      }
 
-    // Fallback: drop language filter if too few English results
-    if (articles.length < 5) {
-      const p2 = new URLSearchParams({ ...baseParams, query: `"${countryName}"` });
-      try {
-        const res2 = await fetchWithTimeout(`${GDELT_DOC_URL}?${p2}`);
-        if (res2.ok) {
-          const data2 = await safeJson(res2);
-          const fallbackArticles = data2?.articles;
-          if (Array.isArray(fallbackArticles) && fallbackArticles.length > 0) {
-            return { articles: fallbackArticles, error: null };
-          }
+      const articles = data?.articles;
+      if (Array.isArray(articles) && articles.length > 0) {
+        const strict = articles.filter((a) => isSourceCountryMatch(a, countryCode, countryName));
+        for (const a of strict) {
+          const key = a?.url || `${a?.title || ''}:${a?.seendate || ''}`;
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          combined.push(a);
         }
-      } catch {
-        // Fallback failed — return whatever the first request found (may be empty)
+        if (combined.length >= Math.min(maxRecords, 120)) break;
       }
     }
-
-    return { articles, error: null };
+    if (combined.length > 0) {
+      return { articles: combined, error: null };
+    }
+    return { articles: [], error: lastError || 'No in-country sources found for this country/time range.' };
   } catch (err) {
-    return { articles: [], error: `GDELT fetch failed: ${err.message}` };
+    return { articles: [], error: `GDELT fetch failed: ${formatFetchError(err)}` };
   }
 }
 
-async function fetchGdeltToneSeries(countryName, timespan) {
-  const params = new URLSearchParams({
-    query: `"${countryName}" sourcelang:English`,
-    mode: 'timelinetonechart',
-    timespan,
-    format: 'json',
-  });
-
-  try {
-    const res = await fetchWithTimeout(`${GDELT_DOC_URL}?${params}`);
-    if (!res.ok) return [];
-
-    const data = await safeJson(res);
-    const timeline = data?.timeline || [];
-
-    return timeline.map((point) => ({
-      date: formatChartDate(point.date),
-      tone: typeof point.value === 'number' ? Math.round(point.value * 10) / 10 : 0,
-    }));
-  } catch {
-    return [];
+async function fetchWithBackoffOn429(url) {
+  let res = await fetchWithTimeout(url);
+  if (res.status === 429) {
+    await sleep(GDELT_RATE_LIMIT_BACKOFF_MS);
+    res = await fetchWithTimeout(url);
   }
+  return res;
+}
+
+function buildToneSeriesFromArticles(articles) {
+  const buckets = new Map();
+
+  for (const article of articles) {
+    const iso = article.publishedAt;
+    if (!iso) continue;
+
+    const dayKey = iso.slice(0, 10); // YYYY-MM-DD
+    const prev = buckets.get(dayKey) || { sum: 0, count: 0 };
+    prev.sum += toneToNumeric(article.tone);
+    prev.count += 1;
+    buckets.set(dayKey, prev);
+  }
+
+  return [...buckets.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([dayKey, value]) => {
+      const [y, m, d] = dayKey.split('-');
+      const display = new Date(`${y}-${m}-${d}`).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      // Scale average tone from [-1, 1] into [-10, 10] for chart readability.
+      const avg = value.count ? (value.sum / value.count) * 10 : 0;
+      return { date: display, tone: Math.round(avg * 10) / 10 };
+    });
 }
 
 function transformGdeltArticle(raw, index, countryName, coordinates) {
   const title = raw.title || 'No title available';
+  const description = raw.description || title;
+  const content = `${title} ${raw.description || ''} ${raw.content || ''}`.trim();
   const tone = classifyToneFromTitle(title);
-  const eventType = classifyEventType(title);
+  const eventType = classifyEventType(content);
 
   return {
     id: `gdelt-${index}-${Date.now()}`,
     title,
-    description: title, // GDELT artlist has no description field
+    description,
     source: raw.domain || 'Unknown Source',
+    sourcecountry: normalizeCountryDisplayName(raw.sourcecountry || ''),
     url: raw.url || '#',
     publishedAt: parseGdeltDate(raw.seendate),
     imageUrl: raw.socialimage || null,
-    content: title,
+    content,
     // GDELT-specific fields
     tone,
     eventType,
@@ -297,7 +435,20 @@ function applyFilters(articles, tone, eventType) {
     result = result.filter((a) => a.eventType === eventType);
   }
 
-  return result;
+  // Keep list in recency order: newest first, oldest at the end.
+  result.sort((a, b) => {
+    const ta = Date.parse(a.publishedAt || '') || 0;
+    const tb = Date.parse(b.publishedAt || '') || 0;
+    return tb - ta;
+  });
+
+  return diversifyBySource(result);
+}
+
+function toneToNumeric(tone) {
+  if (tone === 'positive') return 1;
+  if (tone === 'negative') return -1;
+  return 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -321,12 +472,41 @@ function classifyEventType(title) {
   if (!title) return 'General';
   const lower = title.toLowerCase();
 
+  if (isLikelySportsText(lower)) {
+    return 'Sports';
+  }
+
   for (const { type, words } of EVENT_TYPE_PATTERNS) {
+    if (type === 'Sports') continue;
     for (const word of words) {
       if (lower.includes(word)) return type;
     }
   }
   return 'General';
+}
+
+function isLikelySportsText(lowerText) {
+  let score = 0;
+  let strongHits = 0;
+  for (const term of SPORTS_STRONG_TERMS) {
+    if (lowerText.includes(term)) {
+      score += 2;
+      strongHits += 1;
+    }
+  }
+  for (const term of SPORTS_WEAK_TERMS) {
+    if (lowerText.includes(term)) score += 1;
+  }
+
+  // If the text is heavy on non-sports domains, demand stronger sports evidence.
+  let nonSportsHits = 0;
+  for (const term of SPORTS_EXCLUSION_TERMS) {
+    if (lowerText.includes(term)) nonSportsHits += 1;
+  }
+
+  if (nonSportsHits >= 2) return strongHits >= 1 && score >= 4;
+  if (strongHits >= 1) return score >= 2;
+  return score >= 4;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,15 +521,523 @@ function parseGdeltDate(seendate) {
   return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`;
 }
 
-function formatChartDate(gdeltDate) {
-  if (!gdeltDate) return '';
-  const m = gdeltDate.match(/^(\d{4})(\d{2})(\d{2})/);
-  if (!m) return gdeltDate;
-  const d = new Date(`${m[1]}-${m[2]}-${m[3]}`);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function dateRangeToTimespan(dateRange) {
+  const map = { '24h': '1d', '3d': '3d', '7d': '7d', '14d': '14d', '30d': '30d' };
+  return map[dateRange] || '7d';
 }
 
-function dateRangeToTimespan(dateRange) {
-  const map = { '24h': '1d', '3d': '3d', '7d': '7d', '30d': '30d' };
-  return map[dateRange] || '7d';
+async function fetchCountryEventsBase(countryCode, countryName, { timespan, eventType, maxRecords, cacheKey }) {
+  try {
+    // Single external fetch path (artlist) to reduce rate-limit pressure.
+    let articlesResult = await fetchGdeltArticles(countryCode, countryName, { timespan, eventType, maxRecords });
+
+    // Hard fallback: if GDELT fails, use NewsAPI country endpoint.
+    let fallbackSource = null;
+    if (articlesResult.error && articlesResult.articles.length === 0) {
+      let fallback = await fetchNewsApiSourcesFallback(countryCode, countryName, { maxRecords, eventType });
+      if (fallback.articles.length === 0) {
+        fallback = await fetchNewsApiFallback(countryCode, countryName, { maxRecords });
+      }
+      if (fallback.articles.length > 0) {
+        articlesResult = fallback;
+        fallbackSource = 'newsapi';
+      } else {
+        return { articles: [], toneSeries: [], error: `${articlesResult.error} (country-local fallback unavailable)` };
+      }
+    }
+
+    const coords = COUNTRY_CENTROIDS[countryCode?.toUpperCase()] || null;
+    const normalizedAll = articlesResult.articles.map((raw, i) =>
+      transformGdeltArticle(raw, i, countryName, coords)
+    );
+    const sourceMatched = filterByCountrySource(normalizedAll, countryCode, countryName);
+    const normalized = filterByCountryTopic(sourceMatched, countryCode, countryName);
+    const toneSeries = buildToneSeriesFromArticles(normalized);
+
+    _cache.set(cacheKey, {
+      articles: normalized,
+      toneSeries,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+    _lastSuccessByCountry.set(`${CACHE_SCHEMA_VERSION}:${normalizeKey(countryName || countryCode)}`, {
+      articles: normalized,
+      toneSeries,
+      savedAt: Date.now(),
+    });
+
+    return {
+      articles: normalized,
+      toneSeries,
+      error: fallbackSource
+        ? `GDELT unavailable; showing ${fallbackSource} fallback data.`
+        : null,
+    };
+  } finally {
+    _inflight.delete(cacheKey);
+  }
+}
+
+function isGdeltRateLimitResponse(data) {
+  const raw = data?.__rawText;
+  return typeof raw === 'string' && raw.toLowerCase().includes('limit requests');
+}
+
+function buildGdeltQueries(countryCode, countryName) {
+  const name = normalizeCountryDisplayName(countryName);
+  const code = String(countryCode || '').toUpperCase();
+  const queries = [];
+  const gdeltSourceCode = ISO_TO_GDELT_COUNTRY_CODE[code] || code;
+
+  if (name) {
+    // Primary: sourcecountry queries to enforce country-local outlets.
+    if (gdeltSourceCode) {
+      queries.push(`sourcecountry:${gdeltSourceCode} sourcelang:English`.trim());
+    } else {
+      queries.push(`sourcecountry:${name} sourcelang:English`.trim());
+    }
+  }
+
+  // Keep exactly one strict query path per request to minimize rate limiting.
+  return [...new Set(queries)];
+}
+
+function escapeGdeltPhrase(value) {
+  return String(value || '').replace(/["\\]/g, '').trim();
+}
+
+function normalizeKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+const ISO_TO_GDELT_COUNTRY_CODE = {
+  US: 'US',
+  GB: 'UK',
+  AE: 'AE',
+  NZ: 'NZ',
+  ZA: 'SF',
+  KR: 'KS',
+  KP: 'KN',
+  CZ: 'EZ',
+  DO: 'DR',
+  SV: 'ES',
+};
+const ISO_TO_SOURCECOUNTRY_NAME = {
+  US: 'United States',
+  GB: 'United Kingdom',
+  AE: 'United Arab Emirates',
+  KR: 'South Korea',
+  KP: 'North Korea',
+  CZ: 'Czech Republic',
+  DO: 'Dominican Republic',
+  SV: 'El Salvador',
+};
+
+function normalizeCountryDisplayName(name) {
+  return String(name || '')
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForGdeltSlot() {
+  const run = async () => {
+    const elapsed = Date.now() - _lastGdeltRequestAt;
+    const waitMs = Math.max(0, MIN_GDELT_INTERVAL_MS - elapsed);
+    if (waitMs > 0) {
+      await sleep(waitMs);
+    }
+    _lastGdeltRequestAt = Date.now();
+  };
+
+  const next = _gdeltQueue.then(run, run);
+  _gdeltQueue = next.catch(() => {});
+  await next;
+}
+
+async function fetchNewsApiFallback(countryCode, countryName, { maxRecords = 50 } = {}) {
+  if (!config.newsApiKey) {
+    return { articles: [], error: 'NEWS_API_KEY not configured' };
+  }
+
+  const params = new URLSearchParams({
+    country: String(countryCode || '').toLowerCase(),
+    pageSize: String(Math.min(maxRecords, 100)),
+    apiKey: config.newsApiKey,
+  });
+
+  try {
+    const { statusCode, body } = await httpGetWithTimeout(
+      `https://newsapi.org/v2/top-headlines?${params}`,
+      20_000,
+      {
+        Accept: 'application/json',
+        'User-Agent': 'News-Globe/1.0 (+https://localhost)',
+      }
+    );
+
+    if (statusCode < 200 || statusCode >= 300) {
+      return { articles: [], error: `NewsAPI responded with HTTP ${statusCode}` };
+    }
+
+    let data = null;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      data = null;
+    }
+    const list = Array.isArray(data?.articles) ? data.articles : [];
+
+    const articles = list
+      .filter((a) => a?.title)
+      .map((a, i) => ({
+        title: a.title,
+        description: a.description || '',
+        content: a.content || '',
+        domain: a.source?.name || a.url || 'Unknown Source',
+        url: a.url || '#',
+        seendate: toGdeltLikeDate(a.publishedAt),
+        socialimage: a.urlToImage || null,
+        sourcecountry: normalizeCountryDisplayName(countryName),
+        _fallbackId: i,
+      }));
+
+    return { articles, error: null };
+  } catch (err) {
+    return { articles: [], error: `NewsAPI fallback failed: ${formatFetchError(err)}` };
+  }
+}
+
+async function fetchNewsApiSourcesFallback(countryCode, countryName, { maxRecords = 50, eventType = 'all' } = {}) {
+  if (!config.newsApiKey) {
+    return { articles: [], error: 'NEWS_API_KEY not configured' };
+  }
+
+  const mappedCategory = mapEventTypeToNewsApiCategory(eventType);
+  try {
+    const allSources = await fetchNewsApiSourcesForCountry(countryCode);
+    if (allSources.length === 0) {
+      return { articles: [], error: 'No NewsAPI sources available for this country' };
+    }
+
+    const rankedSources = rankSourcesForEventType(allSources, mappedCategory);
+    const sourceIds = rankedSources
+      .map((s) => s?.id)
+      .filter(Boolean)
+      .slice(0, 20); // NewsAPI sources parameter limit.
+
+    if (sourceIds.length === 0) {
+      return { articles: [], error: 'No usable source IDs from NewsAPI' };
+    }
+
+    const headlinesParams = new URLSearchParams({
+      sources: sourceIds.join(','),
+      pageSize: String(Math.min(maxRecords, 100)),
+      apiKey: config.newsApiKey,
+    });
+
+    const headlinesResp = await httpGetWithTimeout(
+      `https://newsapi.org/v2/top-headlines?${headlinesParams}`,
+      20_000,
+      {
+        Accept: 'application/json',
+        'User-Agent': 'News-Globe/1.0 (+https://localhost)',
+      }
+    );
+
+    if (headlinesResp.statusCode < 200 || headlinesResp.statusCode >= 300) {
+      return { articles: [], error: `NewsAPI headlines responded with HTTP ${headlinesResp.statusCode}` };
+    }
+
+    let headlinesData = null;
+    try {
+      headlinesData = JSON.parse(headlinesResp.body);
+    } catch {
+      headlinesData = null;
+    }
+
+    const list = Array.isArray(headlinesData?.articles) ? headlinesData.articles : [];
+    const filteredList = mappedCategory
+      ? list.filter((a) => isArticleFromCategoryHint(a, mappedCategory))
+      : list;
+
+    const pool = filteredList.length >= 5 ? filteredList : list;
+    const deduped = dedupeByUrl(pool).slice(0, maxRecords);
+
+    const articles = deduped
+      .filter((a) => a?.title)
+      .map((a, i) => ({
+        title: a.title,
+        description: a.description || '',
+        content: a.content || '',
+        domain: a.source?.name || a.url || 'Unknown Source',
+        url: a.url || '#',
+        seendate: toGdeltLikeDate(a.publishedAt),
+        socialimage: a.urlToImage || null,
+        sourcecountry: normalizeCountryDisplayName(countryName),
+        _fallbackId: i,
+      }));
+
+    return { articles, error: null };
+  } catch (err) {
+    return { articles: [], error: `NewsAPI sources fallback failed: ${formatFetchError(err)}` };
+  }
+}
+
+async function fetchNewsApiSourcesForCountry(countryCode) {
+  const country = String(countryCode || '').toLowerCase();
+  const requests = [
+    { country, language: 'en', apiKey: config.newsApiKey },
+    { country, apiKey: config.newsApiKey },
+  ];
+
+  for (const paramsObj of requests) {
+    const params = new URLSearchParams(paramsObj);
+    const resp = await httpGetWithTimeout(
+      `https://newsapi.org/v2/top-headlines/sources?${params}`,
+      20_000,
+      {
+        Accept: 'application/json',
+        'User-Agent': 'News-Globe/1.0 (+https://localhost)',
+      }
+    );
+
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      continue;
+    }
+
+    let data = null;
+    try {
+      data = JSON.parse(resp.body);
+    } catch {
+      data = null;
+    }
+
+    const sources = Array.isArray(data?.sources) ? data.sources : [];
+    if (sources.length > 0) {
+      return sources;
+    }
+  }
+
+  return [];
+}
+
+function mapEventTypeToNewsApiCategory(eventType) {
+  const value = String(eventType || '').toLowerCase();
+  if (value === 'sports') return 'sports';
+  if (value === 'economy') return 'business';
+  return null;
+}
+
+function rankSourcesForEventType(sources, category) {
+  if (!Array.isArray(sources)) return [];
+  if (!category) return sources;
+
+  const preferred = sources.filter((s) => String(s?.category || '').toLowerCase() === category);
+  const others = sources.filter((s) => String(s?.category || '').toLowerCase() !== category);
+  return [...preferred, ...others];
+}
+
+function isArticleFromCategoryHint(article, category) {
+  const text = `${article?.title || ''} ${article?.description || ''}`.toLowerCase();
+  if (category === 'sports') {
+    return /football|soccer|nba|nfl|mlb|nhl|tennis|cricket|olympic|tournament|league|match|athlete/.test(text);
+  }
+  if (category === 'business') {
+    return /economy|inflation|market|stock|bank|trade|gdp|business|finance|investment|jobs|currency/.test(text);
+  }
+  return true;
+}
+
+function dedupeByUrl(articles) {
+  const out = [];
+  const seen = new Set();
+  for (const article of articles || []) {
+    const key = article?.url || `${article?.title || ''}:${article?.publishedAt || ''}`;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(article);
+  }
+  return out;
+}
+
+function toGdeltLikeDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mi = String(d.getUTCMinutes()).padStart(2, '0');
+  const ss = String(d.getUTCSeconds()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}T${hh}${mi}${ss}Z`;
+}
+
+function formatFetchError(err) {
+  if (!err) return 'network error';
+  if (err.name === 'AbortError') return 'request timed out';
+  if (typeof err.message === 'string' && err.message.toLowerCase().includes('fetch failed')) {
+    return 'network request failed';
+  }
+  return err.message || 'network error';
+}
+
+function normalizeLiveError(errorMessage) {
+  const message = String(errorMessage || '');
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes('429')
+    || lower.includes('rate limit')
+    || lower.includes('temporarily')
+  ) {
+    return 'Live country outlets are temporarily rate-limited. Please retry shortly.';
+  }
+
+  if (lower.includes('timed out') || lower.includes('timeout')) {
+    return 'Live country outlets timed out. Please retry shortly.';
+  }
+
+  return message || 'Live country outlets are temporarily unavailable.';
+}
+
+function diversifyBySource(articles, maxPerSource = 3) {
+  if (!Array.isArray(articles) || articles.length === 0) return [];
+  const grouped = new Map();
+  for (const item of articles) {
+    const source = item?.source || 'Unknown Source';
+    if (!grouped.has(source)) grouped.set(source, []);
+    grouped.get(source).push(item);
+  }
+
+  const sources = [...grouped.keys()];
+  const result = [];
+  let added = true;
+  let round = 0;
+
+  // Round-robin so one outlet does not dominate category views.
+  while (added) {
+    added = false;
+    for (const source of sources) {
+      const list = grouped.get(source);
+      if (!list || list.length <= round || round >= maxPerSource) continue;
+      result.push(list[round]);
+      added = true;
+    }
+    round += 1;
+  }
+
+  return result;
+}
+
+function filterByCountrySource(articles, countryCode, countryName) {
+  if (!Array.isArray(articles) || articles.length === 0) return [];
+  return articles.filter((a) => isSourceCountryMatch(a, countryCode, countryName));
+}
+
+function filterByCountryTopic(articles, countryCode, countryName) {
+  if (!Array.isArray(articles) || articles.length === 0) return [];
+  const matcher = buildCountryTopicMatcher(countryCode, countryName);
+  if (!matcher) return articles;
+
+  // Prefer country-mentioned stories, but never collapse to empty if local outlets
+  // do not include the country name in every headline.
+  const ranked = [...articles].sort((a, b) => {
+    const aScore = matcher(countryTopicText(a)) ? 1 : 0;
+    const bScore = matcher(countryTopicText(b)) ? 1 : 0;
+    return bScore - aScore;
+  });
+  return ranked;
+}
+
+function isSourceCountryMatch(article, countryCode, countryName) {
+  const sourceCountry = normalizeCountryDisplayName(article?.sourcecountry || '').toLowerCase();
+  if (!sourceCountry) return false;
+
+  const targets = new Set();
+  const byName = normalizeCountryDisplayName(countryName).toLowerCase();
+  if (byName) targets.add(byName);
+  const alias = normalizeCountryDisplayName(
+    ISO_TO_SOURCECOUNTRY_NAME[String(countryCode || '').toUpperCase()] || ''
+  ).toLowerCase();
+  if (alias) targets.add(alias);
+
+  return targets.has(sourceCountry);
+}
+
+function buildCountryTopicMatcher(countryCode, countryName) {
+  const code = String(countryCode || '').toUpperCase();
+  const aliases = new Set();
+
+  const normalizedName = normalizeCountryDisplayName(countryName).toLowerCase();
+  if (normalizedName) aliases.add(normalizedName);
+
+  const sourceAlias = normalizeCountryDisplayName(
+    ISO_TO_SOURCECOUNTRY_NAME[code] || ''
+  ).toLowerCase();
+  if (sourceAlias) aliases.add(sourceAlias);
+
+  for (const alias of COUNTRY_TOPIC_ALIASES[code] || []) {
+    const cleaned = normalizeCountryDisplayName(alias).toLowerCase();
+    if (cleaned) aliases.add(cleaned);
+  }
+
+  if (aliases.size === 0) return null;
+  const patterns = [...aliases].map((alias) => aliasToRegex(alias));
+  return (text) => patterns.some((re) => re.test(text));
+}
+
+function aliasToRegex(alias) {
+  const escaped = escapeRegExp(alias).replace(/\s+/g, '\\s+');
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+}
+
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function countryTopicText(article) {
+  const title = String(article?.title || '');
+  const description = String(article?.description || '');
+  const content = String(article?.content || '');
+  return `${title} ${description} ${content}`.toLowerCase();
+}
+
+async function httpGetWithTimeout(url, timeoutMs, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      {
+        protocol: u.protocol,
+        hostname: u.hostname,
+        path: `${u.pathname}${u.search}`,
+        method: 'GET',
+        headers,
+        family: 4, // Avoid IPv6 connect stalls seen with undici/fetch in some environments.
+      },
+      (res) => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          resolve({ statusCode: res.statusCode || 0, body });
+        });
+      }
+    );
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error('request timed out'));
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
 }

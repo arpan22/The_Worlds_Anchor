@@ -4,12 +4,13 @@
  * GET /api/events
  *   country     (required) — ISO-2 code, e.g. "us"
  *   countryName (optional) — full name for GDELT query, e.g. "United States"
- *   dateRange   (optional) — "24h" | "3d" | "7d" | "30d"  (default: "7d")
+ *   dateRange   (optional) — "24h" | "3d" | "7d" | "14d" | "30d"  (default: "7d")
  *   tone        (optional) — "all" | "positive" | "neutral" | "negative"
  *   eventType   (optional) — "all" | "Politics" | "Military" | "Economy" | ...
  */
 import { Router } from 'express';
 import { fetchCountryEvents } from '../services/gdeltService.js';
+import { fetchCountryLeagueTable } from '../services/sportsTableService.js';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get('/events', async (req, res) => {
       dateRange,
       tone,
       eventType,
-      maxRecords: 75,
+      maxRecords: 80,
     });
 
     if (result.error && result.articles.length === 0) {
@@ -45,6 +46,31 @@ router.get('/events', async (req, res) => {
   } catch (err) {
     console.error('[/api/events] Error:', err.message);
     return res.status(500).json({ error: 'Internal server error fetching events.' });
+  }
+});
+
+router.get('/sports-table', async (req, res) => {
+  const { country, countryName } = req.query;
+
+  if (!country || typeof country !== 'string' || country.length !== 2) {
+    return res.status(400).json({
+      error: 'Missing or invalid "country" query param. Must be a 2-letter ISO code.',
+      table: [],
+    });
+  }
+
+  try {
+    const result = await fetchCountryLeagueTable(country, countryName || country.toUpperCase());
+    return res.json(result);
+  } catch (err) {
+    console.error('[/api/sports-table] Error:', err.message);
+    return res.status(500).json({
+      error: 'Internal server error fetching sports table.',
+      table: [],
+      league: null,
+      season: null,
+      isFallbackSeason: false,
+    });
   }
 });
 

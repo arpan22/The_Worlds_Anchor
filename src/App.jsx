@@ -8,7 +8,6 @@ import CountryPanel from "./components/CountryPanel";
 import SettingsPanel from "./components/SettingsPanel";
 
 import { useEffect, useState, useCallback } from "react";
-import { fetchCountrySummary } from "./services/CountrySummary";
 
 const DEFAULT_SETTINGS = {
   geminiEnabled: true,
@@ -28,7 +27,7 @@ function loadSettings() {
 
 export default function App() {
   const globe = useGlobeCountries();
-  const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'all' });
+  const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'Economy' });
   const events = useCountryEvents(globe.selectedCountry, eventFilters);
 
   // Settings state — persisted in localStorage
@@ -47,41 +46,9 @@ export default function App() {
   const globeWidth = panelOpen ? Math.floor(window.innerWidth * 0.5) : window.innerWidth;
   const globeHeight = window.innerHeight;
 
-  const [countrySummary, setCountrySummary] = useState(null);
-  const [summaryError, setSummaryError] = useState(null);
-
   useEffect(() => {
     window.dispatchEvent(new Event("resize"));
   }, [panelOpen]);
-
-
- useEffect(() => {
-    let ignore = false;
-
-    async function run() {
-      if (!globe.selectedCountry) {
-        setCountrySummary(null);
-        setSummaryError(null);
-        return;
-      }
-
-      try {
-        setSummaryError(null);
-        const summary = await fetchCountrySummary(globe.selectedCountry);
-        if (!ignore) setCountrySummary(summary);
-      } catch (e) {
-        if (!ignore) {
-          setCountrySummary(null);
-          setSummaryError(e?.message ?? "Failed to load summary");
-        }
-      }
-    }
-
-    run();
-    return () => {
-      ignore = true;
-    };
-  }, [globe.selectedCountry]);
 
 
 
@@ -104,7 +71,6 @@ export default function App() {
           <div className="layout__panel">
             <CountryPanel
               country={globe.selectedCountry}
-              countrySummary={summaryError ?? countrySummary}
               onClose={globe.clearSelection}
               articles={events.articles}
               toneSeries={events.toneSeries}
@@ -113,6 +79,7 @@ export default function App() {
               onRefresh={events.refresh}
               eventFilters={eventFilters}
               onFiltersChange={setEventFilters}
+              countryInfo={events.countryInfo}
               // Nemotron session props
               sessionStatus={session.sessionStatus}
               brief={session.brief}
