@@ -7,6 +7,7 @@ import "./Topbar.css";
  * Contains:
  *  - View tabs: "Country Search" | "War/Protest"
  *  - Country search input + dropdown (only shown in globe/country-search view)
+ *  - Markets toggle button
  */
 export default function Topbar({
   value,
@@ -17,6 +18,8 @@ export default function Topbar({
   setIsOpen,
   activeView,
   onViewChange,
+  isMarketsOpen = false,
+  onToggleMarkets,
 }) {
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
@@ -103,6 +106,13 @@ export default function Topbar({
           )}
         </div>
       )}
+
+      <button
+        className={`topbar__markets-btn ${isMarketsOpen ? "topbar__markets-btn--active" : ""}`}
+        onClick={onToggleMarkets}
+      >
+        Markets
+      </button>
     </div>
   );
 }

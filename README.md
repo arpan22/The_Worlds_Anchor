@@ -130,6 +130,27 @@ GDELT requires no API key — it is a free public dataset.
    ```
 3. Open `http://localhost:5173`, click any country on the globe for news analysis, or use the floating chat button for standalone Groq chat.
 
+## Secondary Sports Workflow
+
+Secondary sports are sourced from:
+1. Spreadsheet dataset: `data/secondarySportsDataset.js`
+2. Live providers (ESPN / SportsDB) for real teams/standings
+3. Manual verified overrides: `data/secondaryLeagueManualOverrides.js`
+
+To generate a country-by-country coverage report (what is resolved vs missing):
+
+```bash
+npm run coverage:secondary
+```
+
+This writes `secondary-coverage-report.csv` with:
+- country code/name
+- sheet sport/league
+- resolved provider league
+- team count
+- status (`ok` or `missing`)
+- error details
+
 ## How It Works
 
 ### News Events (GDELT)

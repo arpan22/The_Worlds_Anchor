@@ -1,4 +1,5 @@
 import { getCountryCode } from '../utils/countryCodes';
+import { getSecondarySportRecord } from '../../data/secondarySportsDataset.js';
 
 const SPECIFIC_PROFILES = {
   us: {
@@ -123,6 +124,105 @@ const SPECIFIC_PROFILES = {
   },
 };
 
+const SECONDARY_SPECIFIC_PROFILES = {
+  us: {
+    topSport: 'Basketball',
+    majorLeague: 'NBA',
+    seasonWindow: 'October to June',
+    notableTeams: ['Boston Celtics', 'Los Angeles Lakers', 'Golden State Warriors'],
+  },
+  ca: {
+    topSport: 'Basketball',
+    majorLeague: 'NBA',
+    seasonWindow: 'October to June',
+    notableTeams: ['Toronto Raptors', 'Boston Celtics', 'Milwaukee Bucks'],
+  },
+  gb: {
+    topSport: 'Rugby Union',
+    majorLeague: 'Premiership Rugby',
+    seasonWindow: 'September to June',
+    notableTeams: ['Saracens', 'Leicester Tigers', 'Harlequins'],
+  },
+  de: {
+    topSport: 'Basketball',
+    majorLeague: 'Basketball Bundesliga (BBL)',
+    seasonWindow: 'September to June',
+    notableTeams: ['Bayern Munich Basketball', 'ALBA Berlin', 'Ratiopharm Ulm'],
+  },
+  fr: {
+    topSport: 'Rugby Union',
+    majorLeague: 'Top 14',
+    seasonWindow: 'September to June',
+    notableTeams: ['Toulouse', 'La Rochelle', 'Racing 92'],
+  },
+  es: {
+    topSport: 'Basketball',
+    majorLeague: 'Liga ACB',
+    seasonWindow: 'September to June',
+    notableTeams: ['Real Madrid Baloncesto', 'Barcelona Bàsquet', 'Baskonia'],
+  },
+  it: {
+    topSport: 'Basketball',
+    majorLeague: 'Lega Basket Serie A',
+    seasonWindow: 'September to June',
+    notableTeams: ['Olimpia Milano', 'Virtus Bologna', 'Reyer Venezia'],
+  },
+  au: {
+    topSport: 'Australian Rules Football',
+    majorLeague: 'AFL',
+    seasonWindow: 'March to September',
+    notableTeams: ['Collingwood', 'Carlton', 'Brisbane Lions'],
+  },
+  ru: {
+    topSport: 'Ice Hockey',
+    majorLeague: 'KHL',
+    seasonWindow: 'September to May',
+    notableTeams: ['SKA Saint Petersburg', 'CSKA Moscow', 'Ak Bars Kazan'],
+  },
+  br: {
+    topSport: 'Volleyball',
+    majorLeague: 'Superliga',
+    seasonWindow: 'October to April',
+    notableTeams: ['Sada Cruzeiro', 'SESI Bauru', 'Minas'],
+  },
+  ar: {
+    topSport: 'Basketball',
+    majorLeague: 'Liga Nacional de Básquet',
+    seasonWindow: 'October to May',
+    notableTeams: ['Quimsa', 'Boca Juniors Basketball', 'Instituto ACC'],
+  },
+  mx: {
+    topSport: 'Baseball',
+    majorLeague: 'Liga Mexicana de Béisbol',
+    seasonWindow: 'April to September',
+    notableTeams: ['Diablos Rojos del México', 'Sultanes de Monterrey', 'Toros de Tijuana'],
+  },
+  jp: {
+    topSport: 'Football',
+    majorLeague: 'J1 League',
+    seasonWindow: 'February to December',
+    notableTeams: ['Kawasaki Frontale', 'Yokohama F. Marinos', 'Urawa Red Diamonds'],
+  },
+  kr: {
+    topSport: 'Football',
+    majorLeague: 'K League 1',
+    seasonWindow: 'February to November',
+    notableTeams: ['Ulsan HD', 'Jeonbuk Hyundai Motors', 'FC Seoul'],
+  },
+  cn: {
+    topSport: 'Football',
+    majorLeague: 'Chinese Super League',
+    seasonWindow: 'March to November',
+    notableTeams: ['Shanghai Port', 'Shandong Taishan', 'Beijing Guoan'],
+  },
+  in: {
+    topSport: 'Football',
+    majorLeague: 'Indian Super League (ISL)',
+    seasonWindow: 'September to April',
+    notableTeams: ['Mohun Bagan Super Giant', 'Mumbai City FC', 'Bengaluru FC'],
+  },
+};
+
 const FOOTBALL_DEFAULT = {
   topSport: 'Football',
   majorLeague: 'Top National Football League',
@@ -204,4 +304,41 @@ export function getCountrySportsProfile(countryName) {
     countryCode: code,
     summary: `Most followed sport in ${countryName}: ${fallback.topSport}.`,
   };
+}
+
+export function getCountrySecondarySportsProfile(countryName) {
+  const code = getCountryCode(countryName);
+  const sheetRecord = getSecondarySportRecord(countryName, code);
+  if (sheetRecord) {
+    const sport = String(sheetRecord.sport || 'Sport');
+    return {
+      topSport: sport,
+      majorLeague: sheetRecord.league || `${countryName} top league`,
+      seasonWindow: inferSeasonWindowBySport(sport),
+      notableTeams: [],
+      countryCode: code,
+      summary: `Second most followed sport in ${countryName}: ${sport}.`,
+    };
+  }
+
+  if (!code) return null;
+  const exact = SECONDARY_SPECIFIC_PROFILES[code];
+  if (!exact) return null;
+  return {
+    ...cloneProfile(exact),
+    countryCode: code,
+    summary: `Second most followed sport in ${countryName}: ${exact.topSport}.`,
+  };
+}
+
+function inferSeasonWindowBySport(sport) {
+  const key = String(sport || '').toLowerCase();
+  if (key.includes('soccer') || key.includes('football')) return 'Mostly August to May';
+  if (key.includes('cricket')) return 'Varies by tournament calendar';
+  if (key.includes('basketball')) return 'Mostly October to June';
+  if (key.includes('baseball')) return 'Mostly March to October';
+  if (key.includes('hockey')) return 'Mostly October to June';
+  if (key.includes('rugby')) return 'Mostly September to June';
+  if (key.includes('volleyball')) return 'Mostly October to April';
+  return 'Varies by league and country';
 }

@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server:install": "cd server && npm install"
+    "server:install": "cd server && npm install",
+    "coverage:secondary": "node scripts/secondary-coverage-report.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

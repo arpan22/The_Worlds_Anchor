@@ -52,10 +52,27 @@ export async function fetchEvents({ country, countryName, dateRange = '7d', tone
  * Fetch league table used in Sports tab.
  * GET /api/sports-table?country=us&countryName=United+States
  */
-export async function fetchSportsTable({ country, countryName }) {
+export async function fetchSportsTable({ country, countryName, slot = 'primary' }) {
   const params = new URLSearchParams({ country });
   if (countryName) params.append('countryName', countryName);
+  if (slot) params.append('slot', slot);
   return apiFetch(`/sports-table?${params}`);
+}
+
+/**
+ * Fetch global stock market snapshot.
+ * GET /api/markets/global
+ */
+export async function fetchGlobalMarkets() {
+  return apiFetch('/markets/global');
+}
+
+/**
+ * Fetch global intraday market history.
+ * GET /api/markets/global-history
+ */
+export async function fetchGlobalMarketsHistory() {
+  return apiFetch('/markets/global-history');
 }
 
 // ─── Country Session ───────────────────────────────────────
