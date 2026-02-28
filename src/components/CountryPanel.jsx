@@ -366,10 +366,12 @@ export default function CountryPanel({
 
         {/* ── INFO TAB ── */}
         {activeTab === 'info' && (
-          <CountryInfo
-            countryName={country.properties?.name}
-            countryCode={getCountryCode(country.properties?.name)}
-          />
+          <>
+            <CountryInfo
+              countryName={country.properties?.name}
+              countryCode={getCountryCode(country.properties?.name)}
+            />
+          </>
         )}
 
         {/* ── AI ANALYSIS TAB ── */}

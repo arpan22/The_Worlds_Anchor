@@ -52,10 +52,10 @@ async function fetchApiNinjas(name) {
 // ── World Bank helpers ──────────────────────────────────
 
 /** Fetch a single WB indicator; return { value, year } of the most-recent non-null record. */
-async function wbLatest(iso2, indicator) {
+async function wbLatest(iso2, indicator, mrv = 5) {
   try {
     const res = await fetch(
-      `${WB}/${iso2}/indicator/${indicator}?format=json&mrv=5&per_page=5`
+      `${WB}/${iso2}/indicator/${indicator}?format=json&mrv=${mrv}&per_page=${mrv}`
     );
     if (!res.ok) return null;
     const [, records] = await res.json();
@@ -126,7 +126,7 @@ export function useCountryInfo(countryCode, countryName) {
         // Economy
         gdpRaw, gdpPcRaw, unemployment, inflation, poverty,
         // Health
-        infantMort, hospBeds, physicians, eduExp, literacy, schoolLife,
+        infantMort, hospBeds, physicians, eduExp, secondaryEnroll, schoolLife,
         // Environment
         electricity, renewable, co2, protectedLand,
         // Time series
@@ -152,11 +152,11 @@ export function useCountryInfo(countryCode, countryName) {
         wbLatest(iso2, 'SH.MED.BEDS.ZS'),
         wbLatest(iso2, 'SH.MED.PHYS.ZS'),
         wbLatest(iso2, 'SE.XPD.TOTL.GD.ZS'),
-        wbLatest(iso2, 'SE.ADT.LITR.ZS'),
+        wbLatest(iso2, 'SE.SEC.ENRR'),
         wbLatest(iso2, 'SE.SCH.LIFE'),
         wbLatest(iso2, 'EG.ELC.ACCS.ZS'),
         wbLatest(iso2, 'EG.FEC.RNEW.ZS'),
-        wbLatest(iso2, 'EN.ATM.CO2E.PC'),
+        wbLatest(iso2, 'EN.ATM.CO2E.PC', 10),
         wbLatest(iso2, 'ER.LND.PTLD.ZS'),
         // Time series
         wbSeries(iso2, 'SP.POP.TOTL',   10),
@@ -212,7 +212,6 @@ export function useCountryInfo(countryCode, countryName) {
       const anSexRatio       = anNum(an?.sex_ratio);      // males per 100 females
       const anPopGrowth      = anNum(an?.pop_growth);     // %
       const anTourists       = anNum(an?.tourists);       // thousands
-      const anRefugees       = anNum(an?.refugees);       // per 100k
       const anThreatened     = anNum(an?.threatened_species);
       const anForested       = anNum(an?.forested_area);  // %
       const anLifeM          = anNum(an?.life_expectancy_male);
@@ -242,8 +241,8 @@ export function useCountryInfo(countryCode, countryName) {
 
         // ── Languages & Education ─────────────────────
         languages,
-        literacyPct:   literacy?.value ?? null,
-        literacyLabel: literacy ? `${fmtNum(literacy.value, 1)}% (${literacy.year})` : null,
+        secondaryEnrollPct:   secondaryEnroll?.value ?? null,
+        secondaryEnrollLabel: secondaryEnroll ? `${fmtNum(secondaryEnroll.value, 1)}% (${secondaryEnroll.year})` : null,
         internetUsers: anInternetUsers != null ? `${fmtNum(anInternetUsers, 1)}%` : null,
 
         // ── Economy ───────────────────────────────────
@@ -279,7 +278,6 @@ export function useCountryInfo(countryCode, countryName) {
         schoolLifeExpectancy: schoolLife ? `${fmtNum(schoolLife.value,  1)} years (${schoolLife.year})`               : null,
         homicideRate:    anHomicide  != null ? `${fmtNum(anHomicide,  1)} / 100,000` : null,
         touristArrivals: anTourists  != null ? `${fmtNum(anTourists,  0)}K visitors` : null,
-        refugees:        anRefugees  != null ? `${fmtNum(anRefugees,  1)} / 100,000` : null,
 
         // ── Environment & Energy ──────────────────────
         electricityPct:    electricity?.value ?? null,

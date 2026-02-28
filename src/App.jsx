@@ -6,7 +6,7 @@ import { useCountryEvents } from "./hooks/useCountryEvents";
 import { useCountrySession } from "./hooks/useCountrySession";
 import CountryPanel from "./components/CountryPanel";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 
 function buildNewsBriefing(country, brief) {
   if (!brief) return '';
@@ -46,7 +46,6 @@ export default function App() {
 
   const newsBriefing = buildNewsBriefing(globe.selectedCountry, session.brief);
 
-
   useEffect(() => {
     window.dispatchEvent(new Event("resize"));
   }, [panelOpen]);
@@ -68,8 +67,8 @@ export default function App() {
           />
         </div>
 
-        {panelOpen && (
-          <div className="layout__panel">
+        <div className={`layout__panel${panelOpen ? ' layout__panel--open' : ''}`}>
+          {panelOpen && (
             <CountryPanel
               country={globe.selectedCountry}
               onClose={globe.clearSelection}
@@ -93,8 +92,8 @@ export default function App() {
               onGenerateGraph={session.generateGraph}
               onGenerateTimeline={session.generateTimeline}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <Topbar

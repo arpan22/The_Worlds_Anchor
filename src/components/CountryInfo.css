@@ -1,9 +1,45 @@
 /* CountryInfo.css — Info tab styles */
 
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .cinfo {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.cinfo__capital-photo-wrap,
+.cinfo__overview,
+.cinfo__card {
+  animation: cardFadeIn 0.3s ease both;
+}
+
+.cinfo__capital-photo-wrap { animation-delay: 0s;    }
+.cinfo__overview           { animation-delay: 0.05s; }
+.cinfo__card:nth-child(3)  { animation-delay: 0.10s; }
+.cinfo__card:nth-child(4)  { animation-delay: 0.15s; }
+.cinfo__card:nth-child(5)  { animation-delay: 0.20s; }
+.cinfo__card:nth-child(6)  { animation-delay: 0.25s; }
+.cinfo__card:nth-child(7)  { animation-delay: 0.30s; }
+.cinfo__card:nth-child(8)  { animation-delay: 0.35s; }
+.cinfo__card:nth-child(9)  { animation-delay: 0.40s; }
+
+/* ── Capital photo ───────────────────────────────── */
+
+.cinfo__capital-photo-wrap {
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cinfo__capital-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
 }
 
 /* ── Overview block ──────────────────────────────── */
@@ -27,12 +63,7 @@
 }
 
 .cinfo__overview-item:nth-child(4) {
-  grid-column: 1 / 2;
-  border-top: 1px solid rgba(42, 120, 139, 0.22);
-}
-
-.cinfo__overview-item:nth-child(5) {
-  grid-column: 2 / 4;
+  grid-column: 1 / 4;
   border-top: 1px solid rgba(42, 120, 139, 0.22);
 }
 
