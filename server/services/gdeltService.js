@@ -1053,7 +1053,8 @@ function filterByCountryTopic(articles, countryCode, countryName) {
 
 function isSourceCountryMatch(article, countryCode, countryName) {
   const sourceCountry = normalizeCountryDisplayName(article?.sourcecountry || '').toLowerCase();
-  if (!sourceCountry) return false;
+  // If GDELT doesn't populate sourcecountry, trust its own query-level filtering.
+  if (!sourceCountry) return true;
 
   const targets = new Set();
   const byName = normalizeCountryDisplayName(countryName).toLowerCase();

@@ -133,7 +133,7 @@ export default function CountryPanel({
     async function loadSportsTable() {
       if (!isSportsMode) return;
       const countryName = countryInfo?.name || country?.properties?.name;
-      const countryCode = countryInfo?.code;
+      const countryCode = countryInfo?.code || getCountryCode(country?.properties?.name);
       if (!countryName || !countryCode) {
         setSportsTable([]);
         setSportsError('Sports table unavailable for this country.');
