@@ -198,8 +198,10 @@ const EVENT_TYPE_PATTERNS = [
   {
     type: 'Crime',
     words: ['crime', 'murder', 'homicide', 'robbery', 'theft', 'fraud', 'scam',
-      'gang', 'cartel', 'kidnap', 'kidnapping', 'arrest', 'police', 'court',
-      'trial', 'sentence', 'prison', 'jail', 'investigation', 'corruption'],
+      'gang', 'cartel', 'kidnap', 'kidnapping', 'abduction', 'arrest', 'police',
+      'court', 'trial', 'sentence', 'prison', 'jail', 'investigation', 'corruption',
+      'shooting', 'stabbing', 'assault', 'burglary', 'suspect', 'charged',
+      'convicted', 'raid', 'drug seizure', 'smuggling'],
   },
   {
     type: 'Sports',
@@ -733,10 +735,6 @@ function normalizeCountryDisplayName(name) {
     .replace(/\./g, '')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function waitForGdeltSlot() {

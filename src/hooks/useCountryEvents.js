@@ -88,11 +88,11 @@ export function useCountryEvents(selectedCountry, filters = {}, options = {}) {
       if (result.articles && result.articles.length > 0) {
         setArticles(result.articles);
         setToneSeries(result.toneSeries || []);
-        setError(null);
+        setError(result.error || null);
       } else {
         setArticles([]);
         setToneSeries([]);
-        setError(`No events found for ${countryName} in the selected time range.`);
+        setError(result.error || `No events found for ${countryName} in the selected time range.`);
       }
 
       setLastFetched(new Date());

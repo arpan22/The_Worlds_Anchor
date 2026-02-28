@@ -42,6 +42,7 @@ router.get('/events', async (req, res) => {
       toneSeries: result.toneSeries,
       total: result.articles.length,
       source: 'gdelt',
+      error: result.error || null,
     });
   } catch (err) {
     console.error('[/api/events] Error:', err.message);
