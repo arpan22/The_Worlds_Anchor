@@ -38,6 +38,9 @@ function buildNewsBriefing(country, brief) {
 export default function App() {
   // Top-level view: 'globe' (country search) or 'warprotest'
   const [activeView, setActiveView] = useState('globe');
+  const [showIntro, setShowIntro] = useState(true);
+  const [isIntroReady, setIsIntroReady] = useState(false);
+  const [introHasError, setIntroHasError] = useState(false);
 
   const globe = useGlobeCountries();
   const [eventFilters, setEventFilters] = useState({ dateRange: '7d', tone: 'all', eventType: 'Economy' });
@@ -65,31 +68,65 @@ export default function App() {
 
   return (
     <>
-      <Topbar
-        value={globe.searchQuery}
-        onChange={globe.setSearchQuery}
-        results={globe.filteredCountries}
-        isOpen={globe.isDropdownOpen}
-        setIsOpen={globe.setIsDropdownOpen}
-        onSelectCountry={(country) => {
-          setIsMarketOpen(false);
-          globe.handleSelectCountry(country);
-        }}
-        activeView={activeView}
-        onViewChange={handleViewChange}
-        isMarketsOpen={isMarketOpen}
-        onToggleMarkets={() => {
-          setIsMarketOpen((prev) => {
-            const next = !prev;
-            if (next) {
-              globe.clearSelection();
+      {showIntro && (
+        <div
+          className={`intro-overlay ${isIntroReady ? "intro-overlay--ready" : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-label="Enter website"
+          onClick={() => setShowIntro(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setShowIntro(false);
             }
-            return next;
-          });
-        }}
-      />
+          }}
+        >
+          <video
+            className="intro-overlay__video"
+            src="/globewithtitle.mov"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            onCanPlay={() => setIsIntroReady(true)}
+            onLoadedData={() => setIsIntroReady(true)}
+            onError={() => setIntroHasError(true)}
+          />
+          <div className="intro-overlay__hint">
+            {introHasError ? 'Video failed to load. Click anywhere to continue' : 'Click anywhere to enter'}
+          </div>
+        </div>
+      )}
 
-      {activeView === 'globe' && (
+      {!showIntro && (
+        <Topbar
+          value={globe.searchQuery}
+          onChange={globe.setSearchQuery}
+          results={globe.filteredCountries}
+          isOpen={globe.isDropdownOpen}
+          setIsOpen={globe.setIsDropdownOpen}
+          onSelectCountry={(country) => {
+            setIsMarketOpen(false);
+            globe.handleSelectCountry(country);
+          }}
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          isMarketsOpen={isMarketOpen}
+          onToggleMarkets={() => {
+            setIsMarketOpen((prev) => {
+              const next = !prev;
+              if (next) {
+                globe.clearSelection();
+              }
+              return next;
+            });
+          }}
+        />
+      )}
+
+      {!showIntro && activeView === 'globe' && (
         <div className={`layout ${panelOpen ? "layout--panel-open" : ""}`}>
           <div className="layout__globe">
             <GlobeView
@@ -137,7 +174,7 @@ export default function App() {
         </div>
       )}
 
-      {activeView === 'warprotest' && <WarProtestView />}
+      {!showIntro && activeView === 'warprotest' && <WarProtestView />}
     </>
   );
 }
