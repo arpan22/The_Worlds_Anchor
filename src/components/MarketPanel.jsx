@@ -34,10 +34,10 @@ function formatTimestamp(iso) {
   return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function formatHourLabel(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
+function formatDayLabel(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T12:00:00Z");
+  return d.toLocaleString("en-US", { month: "short", day: "numeric" });
 }
 
 function formatPercent(value, digits = 2) {
@@ -186,8 +186,8 @@ export default function MarketPanel({ onClose }) {
             )}
 
             <section className="market-panel__chart">
-              <h3 className="market-panel__chart-title">Live Price Trend (All Indices)</h3>
-              <div className="market-panel__line-subtitle">Last 24 hours, % change from start (zoomed for visible movement).</div>
+              <h3 className="market-panel__chart-title">Price Trend (All Indices)</h3>
+              <div className="market-panel__line-subtitle">Last 10 trading days, % change from first day.</div>
               <div className="market-panel__chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={lineData}>
@@ -237,13 +237,15 @@ export default function MarketPanel({ onClose }) {
 function buildCombinedLineData(historyBySymbol, quotes) {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
-  const startTs = now - DAY_MS;
+  const startTs = now - 30 * DAY_MS; // show up to 30 days of daily data
   const symbols = (quotes || []).map((q) => q.symbol);
   const tsSet = new Set();
 
   for (const symbol of symbols) {
     for (const point of historyBySymbol?.[symbol] || []) {
-      const ts = Date.parse(point?.time || "");
+      // Daily dates like "2026-02-20" — parse at noon UTC to avoid timezone shifts
+      const raw = String(point?.time || "");
+      const ts = Date.parse(raw.length === 10 ? raw + "T12:00:00Z" : raw);
       if (!Number.isFinite(ts) || ts < startTs) continue;
       tsSet.add(ts);
     }
@@ -253,7 +255,11 @@ function buildCombinedLineData(historyBySymbol, quotes) {
   const bySymbol = {};
   for (const symbol of symbols) {
     bySymbol[symbol] = (historyBySymbol?.[symbol] || [])
-      .map((p) => ({ ts: Date.parse(p?.time || ""), price: Number(p?.price) }))
+      .map((p) => {
+        const raw = String(p?.time || "");
+        const ts = Date.parse(raw.length === 10 ? raw + "T12:00:00Z" : raw);
+        return { ts, price: Number(p?.price) };
+      })
       .filter((p) => Number.isFinite(p.ts) && Number.isFinite(p.price) && p.ts >= startTs)
       .sort((a, b) => a.ts - b.ts);
   }
@@ -265,7 +271,8 @@ function buildCombinedLineData(historyBySymbol, quotes) {
   }
 
   const rows = timestamps.map((ts) => {
-    const row = { time: formatHourLabel(new Date(ts).toISOString()) };
+    const dateStr = new Date(ts).toISOString().slice(0, 10);
+    const row = { time: formatDayLabel(dateStr) };
     for (const symbol of symbols) {
       const point = bySymbol[symbol].find((p) => p.ts === ts);
       if (!point || !baseline[symbol]) {
