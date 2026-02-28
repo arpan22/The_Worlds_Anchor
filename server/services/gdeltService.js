@@ -11,8 +11,10 @@
  */
 
 const GDELT_DOC_URL = 'https://api.gdeltproject.org/api/v2/doc/doc';
-const CACHE_TTL_MS = 8 * 60 * 1000; // 8 minutes
-const FETCH_TIMEOUT_MS = 30_000;     // 30 s per request
+const CACHE_TTL_MS  = 8 * 60 * 1000; // 8 minutes
+const FETCH_TIMEOUT_MS = 30_000;      // 30 s per request
+const RETRY_DELAY_MS   = 2_000;       // wait before retrying after 429
+const FALLBACK_DELAY_MS = 400;        // polite pause before fallback request
 
 // In-memory cache: key → { articles, toneSeries, expiresAt }
 const _cache = new Map();
@@ -71,6 +73,97 @@ const NEGATIVE_WORDS = new Set([
   'disaster', 'riot', 'victim', 'injur', 'wound', 'threat', 'accuse',
   'corrupt', 'scandal', 'resign', 'fall', 'fail', 'collapse',
 ]);
+
+// ── Country aliases: demonyms, capitals, common abbreviations ─
+// Used to filter GDELT results to articles whose TITLE actually
+// mentions the country — not just somewhere in the article body.
+const COUNTRY_ALIASES = {
+  'afghanistan':        ['afghan', 'kabul', 'taliban'],
+  'argentina':          ['argentinian', 'buenos aires'],
+  'australia':          ['australian', 'canberra', 'sydney', 'melbourne'],
+  'austria':            ['austrian', 'vienna'],
+  'bangladesh':         ['bangladeshi', 'dhaka'],
+  'belgium':            ['belgian', 'brussels'],
+  'bolivia':            ['bolivian', 'la paz'],
+  'brazil':             ['brazilian', 'brasilia'],
+  'canada':             ['canadian', 'ottawa', 'trudeau'],
+  'chile':              ['chilean', 'santiago'],
+  'china':              ['chinese', 'beijing', 'xi jinping', 'ccp'],
+  'colombia':           ['colombian', 'bogota'],
+  'cuba':               ['cuban', 'havana'],
+  'czech republic':     ['czech', 'prague', 'czechia'],
+  'czechia':            ['czech', 'prague'],
+  'denmark':            ['danish', 'copenhagen'],
+  'egypt':              ['egyptian', 'cairo'],
+  'ethiopia':           ['ethiopian', 'addis ababa'],
+  'finland':            ['finnish', 'helsinki'],
+  'france':             ['french', 'paris', 'macron', 'elysee'],
+  'germany':            ['german', 'berlin', 'bundestag', 'bundesrat'],
+  'ghana':              ['ghanaian', 'accra'],
+  'greece':             ['greek', 'athens'],
+  'hungary':            ['hungarian', 'budapest', 'orban'],
+  'india':              ['indian', 'new delhi', 'mumbai', 'modi'],
+  'indonesia':          ['indonesian', 'jakarta'],
+  'iran':               ['iranian', 'tehran'],
+  'iraq':               ['iraqi', 'baghdad'],
+  'ireland':            ['irish', 'dublin'],
+  'israel':             ['israeli', 'jerusalem', 'tel aviv', 'netanyahu', 'idf', 'gaza'],
+  'italy':              ['italian', 'rome', 'meloni'],
+  'japan':              ['japanese', 'tokyo'],
+  'jordan':             ['jordanian', 'amman'],
+  'kenya':              ['kenyan', 'nairobi'],
+  'lebanon':            ['lebanese', 'beirut'],
+  'mexico':             ['mexican', 'mexico city'],
+  'myanmar':            ['burmese', 'naypyidaw', 'yangon'],
+  'netherlands':        ['dutch', 'amsterdam', 'the hague'],
+  'new zealand':        ['new zealander', 'wellington', 'auckland'],
+  'nigeria':            ['nigerian', 'lagos', 'abuja'],
+  'north korea':        ['north korean', 'pyongyang', 'kim jong'],
+  'norway':             ['norwegian', 'oslo'],
+  'pakistan':           ['pakistani', 'islamabad', 'karachi'],
+  'peru':               ['peruvian', 'lima'],
+  'philippines':        ['philippine', 'filipino', 'manila'],
+  'poland':             ['polish', 'warsaw'],
+  'portugal':           ['portuguese', 'lisbon'],
+  'romania':            ['romanian', 'bucharest'],
+  'russia':             ['russian', 'moscow', 'kremlin', 'putin'],
+  'saudi arabia':       ['saudi', 'riyadh'],
+  'serbia':             ['serbian', 'belgrade'],
+  'south africa':       ['south african', 'johannesburg', 'cape town', 'pretoria'],
+  'south korea':        ['south korean', 'korean', 'seoul'],
+  'spain':              ['spanish', 'madrid'],
+  'sweden':             ['swedish', 'stockholm'],
+  'switzerland':        ['swiss', 'geneva', 'zurich', 'davos', 'bern'],
+  'syria':              ['syrian', 'damascus', 'aleppo'],
+  'thailand':           ['thai', 'bangkok'],
+  'turkey':             ['turkish', 'ankara', 'erdogan'],
+  'ukraine':            ['ukrainian', 'kyiv', 'zelensky'],
+  'united kingdom':     ['british', 'britain', 'u.k.', ' uk ', 'london', 'parliament', 'westminster', 'downing street'],
+  'united states':      ['american', 'u.s.', ' us ', 'washington', 'white house', 'congress', 'pentagon'],
+  'venezuela':          ['venezuelan', 'caracas', 'maduro'],
+  'vietnam':            ['vietnamese', 'hanoi'],
+};
+
+/** Returns true if the article title references the country by name, demonym, or capital. */
+function titleMentionsCountry(title, countryName) {
+  if (!title) return false;
+  const lower = title.toLowerCase();
+  if (lower.includes(countryName.toLowerCase())) return true;
+  const aliases = COUNTRY_ALIASES[countryName.toLowerCase()];
+  if (aliases) return aliases.some((a) => lower.includes(a));
+  return false;
+}
+
+/**
+ * Keep only articles whose title mentions the country.
+ * If fewer than MIN_RELEVANT pass, return the original unfiltered list
+ * (better to show some results than none for obscure countries).
+ */
+const MIN_RELEVANT = 5;
+function filterByTitleRelevance(articles, countryName) {
+  const relevant = articles.filter((a) => titleMentionsCountry(a.title, countryName));
+  return relevant.length >= MIN_RELEVANT ? relevant : articles;
+}
 
 // ── Event type keyword sets ───────────────────────────────
 const EVENT_TYPE_PATTERNS = [
@@ -139,6 +232,8 @@ async function safeJson(res) {
   }
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
@@ -172,9 +267,8 @@ export async function fetchCountryEvents(countryCode, countryName, opts = {}) {
 
   const timespan = dateRangeToTimespan(dateRange);
 
-  // Sequential fetches — GDELT rate-limits concurrent requests from the same IP.
+  // One request per country — tone series is omitted to stay within GDELT rate limits.
   const articlesResult = await fetchGdeltArticles(countryName, { timespan, maxRecords });
-  const toneSeries = await fetchGdeltToneSeries(countryName, timespan);
 
   if (articlesResult.error && articlesResult.articles.length === 0) {
     return { articles: [], toneSeries: [], error: articlesResult.error };
@@ -185,14 +279,18 @@ export async function fetchCountryEvents(countryCode, countryName, opts = {}) {
     transformGdeltArticle(raw, i, countryName, coords)
   );
 
+  // Drop articles whose title doesn't reference the country — GDELT matches on
+  // full body text, so many results only mention the country once in passing.
+  const relevant = filterByTitleRelevance(normalized, countryName);
+
   _cache.set(cacheKey, {
-    articles: normalized,
-    toneSeries,
+    articles: relevant,
+    toneSeries: [],
     expiresAt: Date.now() + CACHE_TTL_MS,
   });
 
-  const filtered = applyFilters(normalized, tone, eventType);
-  return { articles: filtered, toneSeries, error: null };
+  const filtered = applyFilters(relevant, tone, eventType);
+  return { articles: filtered, toneSeries: [], error: null };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -211,7 +309,14 @@ async function fetchGdeltArticles(countryName, { timespan, maxRecords }) {
   try {
     // First attempt: English-language articles only
     const p1 = new URLSearchParams({ ...baseParams, query: `"${countryName}" sourcelang:English` });
-    const res1 = await fetchWithTimeout(`${GDELT_DOC_URL}?${p1}`);
+    let res1 = await fetchWithTimeout(`${GDELT_DOC_URL}?${p1}`);
+
+    // Retry once on 429
+    if (res1.status === 429) {
+      await sleep(RETRY_DELAY_MS);
+      res1 = await fetchWithTimeout(`${GDELT_DOC_URL}?${p1}`);
+    }
+
     if (!res1.ok) throw new Error(`GDELT responded with HTTP ${res1.status}`);
 
     const data1 = await safeJson(res1);
@@ -221,6 +326,7 @@ async function fetchGdeltArticles(countryName, { timespan, maxRecords }) {
     if (articles.length < 5) {
       const p2 = new URLSearchParams({ ...baseParams, query: `"${countryName}"` });
       try {
+        await sleep(FALLBACK_DELAY_MS); // polite pause before second request
         const res2 = await fetchWithTimeout(`${GDELT_DOC_URL}?${p2}`);
         if (res2.ok) {
           const data2 = await safeJson(res2);

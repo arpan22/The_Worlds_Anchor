@@ -178,12 +178,12 @@ STRICT OUTPUT RULES — VIOLATION MEANS FAILURE:
 // ──────────────────────────────────────────────
 // 5. GRAPH GENERATION — Nemotron System Prompt
 // ──────────────────────────────────────────────
-export const GRAPH_SYSTEM_PROMPT = `You are a data analyst. You will receive a country news brief and a list of article titles. Your task is to produce a bar chart dataset summarizing the news landscape.
+export const GRAPH_SYSTEM_PROMPT = `You are a data analyst. You will receive a country name, a news brief, and a list of article titles for that specific country. Your task is to produce a bar chart dataset summarizing that country's news landscape.
 
 OUTPUT FORMAT (respond with valid JSON only, no markdown fences):
 {
   "type": "bar",
-  "title": "Short descriptive chart title",
+  "title": "Short descriptive chart title that names the country (e.g. 'Germany: News by Category')",
   "xAxisLabel": "Category",
   "yAxisLabel": "Article Count",
   "data": [
@@ -192,26 +192,27 @@ OUTPUT FORMAT (respond with valid JSON only, no markdown fences):
 }
 
 RULES:
-- Produce 5–8 data points representing topic/event-type frequency.
+- The chart title MUST include the country name. Never use generic titles like "Global News Landscape".
+- Produce 5–8 data points representing topic/event-type frequency for that country only.
 - Count how many articles fall into each category (Politics, Economy, Military, Diplomacy, Environment, Society, General).
 - Use distinct hex colors for each bar (use: #2a788b, #f07f16, #76b900, #e05252, #9b59b6, #1abc9c, #f39c12).
 - "value" must be a positive integer.
 - Respond ONLY with the JSON object. No extra text.`;
 
-export function buildGraphUserPrompt(brief, articles) {
+export function buildGraphUserPrompt(brief, articles, countryName) {
   const bulletText = (brief?.bullets || []).slice(0, 8).map(b => `• ${b}`).join('\n');
   const articleTitles = articles.slice(0, 30).map((a, i) => `[${i + 1}] ${a.title} (${a.eventType || 'General'})`).join('\n');
-  return `BRIEF SUMMARY:\n${bulletText || '(not available)'}\n\nARTICLE TITLES WITH EVENT TYPES:\n${articleTitles}\n\nProduce the bar chart dataset as specified.`;
+  return `COUNTRY: ${countryName}\n\nBRIEF SUMMARY:\n${bulletText || '(not available)'}\n\nARTICLE TITLES WITH EVENT TYPES (all from ${countryName}):\n${articleTitles}\n\nProduce the bar chart dataset for ${countryName} as specified.`;
 }
 
 // ──────────────────────────────────────────────
 // 6. TIMELINE EXTRACTION — Nemotron System Prompt
 // ──────────────────────────────────────────────
-export const TIMELINE_SYSTEM_PROMPT = `You are a news historian. You will receive a list of news article titles with dates. Extract the most significant events and arrange them into a chronological timeline.
+export const TIMELINE_SYSTEM_PROMPT = `You are a news historian. You will receive a country name and a list of news article titles with dates for that specific country. Extract the most significant events and arrange them into a chronological timeline.
 
 OUTPUT FORMAT (respond with valid JSON only, no markdown fences):
 {
-  "title": "Short descriptive timeline title",
+  "title": "Short descriptive timeline title that names the country (e.g. 'Germany: Recent Events')",
   "events": [
     {
       "date": "YYYY-MM-DD",
@@ -223,13 +224,15 @@ OUTPUT FORMAT (respond with valid JSON only, no markdown fences):
 }
 
 RULES:
+- The timeline title MUST include the country name. Never use generic titles.
+- All events must be specific to the named country — do not include events from other countries.
 - Include 5–12 events, ordered from oldest to newest.
 - Use only events that have a clear date from the article metadata.
 - Be strictly factual. Do not speculate or invent events.
 - "tone" must be exactly one of: "positive", "negative", or "neutral".
 - Respond ONLY with the JSON object. No extra text.`;
 
-export function buildTimelineUserPrompt(articles) {
+export function buildTimelineUserPrompt(articles, countryName) {
   const articleList = articles
     .slice(0, 30)
     .map((a, i) => {
@@ -237,7 +240,7 @@ export function buildTimelineUserPrompt(articles) {
       return `[${i + 1}] (${date}) ${a.title}`;
     })
     .join('\n');
-  return `ARTICLE LIST (date + title):\n${articleList}\n\nExtract and produce the chronological timeline as specified.`;
+  return `COUNTRY: ${countryName}\n\nARTICLE LIST for ${countryName} (date + title):\n${articleList}\n\nExtract and produce the chronological timeline for ${countryName} as specified.`;
 }
 
 export function buildFallbackChatUserPrompt(countryName, question, brief, articles) {

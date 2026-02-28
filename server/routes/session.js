@@ -306,7 +306,7 @@ router.post('/country-session/:sessionId/graph', async (req, res) => {
   try {
     const raw = await nemotron.chatCompletion([
       { role: 'system', content: GRAPH_SYSTEM_PROMPT },
-      { role: 'user', content: buildGraphUserPrompt(session.brief, session.articles) },
+      { role: 'user', content: buildGraphUserPrompt(session.brief, session.articles, session.countryName) },
     ], { temperature: 0.2, maxTokens: 600, topP: 0.9 });
 
     const graphData = parseJsonResponse(raw);
@@ -331,7 +331,7 @@ router.post('/country-session/:sessionId/timeline', async (req, res) => {
   try {
     const raw = await nemotron.chatCompletion([
       { role: 'system', content: TIMELINE_SYSTEM_PROMPT },
-      { role: 'user', content: buildTimelineUserPrompt(session.articles) },
+      { role: 'user', content: buildTimelineUserPrompt(session.articles, session.countryName) },
     ], { temperature: 0.2, maxTokens: 1200, topP: 0.9 });
 
     const timelineData = parseJsonResponse(raw);
