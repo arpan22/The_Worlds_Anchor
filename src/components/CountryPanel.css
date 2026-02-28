@@ -1,4 +1,23 @@
 /* src/components/CountryPanel.css */
+@keyframes panelSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes panelFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.panel__tab-content {
+  animation: tabFadeIn 0.2s ease both;
+}
+
 .panel {
   position: fixed;
   top: 56px;
@@ -10,16 +29,23 @@
   border-left: 1px solid rgba(42, 120, 139, 0.3);
   color: rgb(255, 255, 255);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  transform: translateX(100%);
-  transition: transform 200ms ease;
+  animation: panelSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
   z-index: 11;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.panel--open {
-  transform: translateX(0);
+.panel__header {
+  animation: panelFadeIn 0.3s ease 0.2s both;
+}
+
+.panel__tabs {
+  animation: panelFadeIn 0.3s ease 0.25s both;
+}
+
+.panel__body {
+  animation: panelFadeIn 0.3s ease 0.3s both;
 }
 
 .panel__close {

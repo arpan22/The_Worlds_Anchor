@@ -12,6 +12,7 @@
  * government type, head of state, climate, elevation, etc.
  */
 
+import { useState, useEffect } from 'react';
 import { useCountryInfo } from '../hooks/useCountryInfo';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -117,6 +118,38 @@ function Sparkline({ data, label, valueFormatter }) {
 export default function CountryInfo({ countryName, countryCode }) {
   const { info, isLoading, error } = useCountryInfo(countryCode, countryName);
 
+  const [photoUrl, setPhotoUrl] = useState(null);
+
+  useEffect(() => {
+    setPhotoUrl(null);
+    const capital = info?.capital;
+    if (!capital) return;
+    const key = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
+    if (!key) return;
+
+    // Sanitize: "Washington, D.C." → "Washington DC"
+    const query = capital.replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+
+    let cancelled = false;
+    fetch(
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=5&orientation=landscape&content_filter=high`,
+      { headers: { Authorization: `Client-ID ${key}` } }
+    )
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return;
+        const results = data?.results ?? [];
+        if (!results.length) return;
+        // Pick the most-liked photo as a quality signal
+        const best = results.reduce((a, b) => (b.likes > a.likes ? b : a));
+        // Use raw URL with explicit center-crop dimensions (avoids entropy crop)
+        setPhotoUrl(best.urls.raw + '?auto=format&fit=crop&crop=center&w=900&h=600&q=80');
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [info?.capital]);
+
   if (isLoading) {
     return (
       <div className="cinfo cinfo--loading">
@@ -134,6 +167,18 @@ export default function CountryInfo({ countryName, countryCode }) {
   return (
     <div className="cinfo">
 
+      {/* ── Capital photo ─────────────────────────────── */}
+      {photoUrl && (
+        <div className="cinfo__capital-photo-wrap">
+          <img
+            src={photoUrl}
+            alt={`${info.capital} skyline`}
+            className="cinfo__capital-photo"
+            loading="lazy"
+          />
+        </div>
+      )}
+
       {/* ── Overview block ───────────────────────────── */}
       <div className="cinfo__overview">
         <div className="cinfo__overview-item">
@@ -149,12 +194,8 @@ export default function CountryInfo({ countryName, countryCode }) {
           <span className="cinfo__overview-value">{info?.currency ?? PLACEHOLDER}</span>
         </div>
         <div className="cinfo__overview-item">
-          <span className="cinfo__overview-label">Government Type</span>
-          <span className="cinfo__overview-value">{PLACEHOLDER}</span>
-        </div>
-        <div className="cinfo__overview-item">
-          <span className="cinfo__overview-label">Head of Government</span>
-          <span className="cinfo__overview-value">{PLACEHOLDER}</span>
+          <span className="cinfo__overview-label">Region</span>
+          <span className="cinfo__overview-value">{info?.region ?? PLACEHOLDER}</span>
         </div>
       </div>
 
@@ -193,18 +234,12 @@ export default function CountryInfo({ countryName, countryCode }) {
       <InfoCard title="Languages & Education">
         <StatRow label="Official Languages" value={info?.languages} />
         <ProgressRow
-          label="Literacy Rate"
-          value={info?.literacyPct}
-          displayValue={info?.literacyLabel}
+          label="Secondary School Enrollment"
+          value={info?.secondaryEnrollPct}
+          displayValue={info?.secondaryEnrollLabel}
           color="#2a788b"
         />
         <StatRow label="Internet Users" value={info?.internetUsers} />
-      </InfoCard>
-
-      {/* ── Government ───────────────────────────────── */}
-      <InfoCard title="Government">
-        <StatRow label="Capital" value={info?.capital} />
-        <StatRow label="Region"  value={info?.region} />
       </InfoCard>
 
       {/* ── Economy ──────────────────────────────────── */}
@@ -238,9 +273,9 @@ export default function CountryInfo({ countryName, countryCode }) {
 
       {/* ── Social & Health ───────────────────────────── */}
       <InfoCard title="Social & Health">
-        <StatRow label="Infant Mortality"       value={info?.infantMortality} />
-        <StatRow label="Hospital Beds / 1,000"  value={info?.hospitalBeds} />
-        <StatRow label="Physicians / 1,000"     value={info?.physicians} />
+        <StatRow label="Infant Mortality"        value={info?.infantMortality} />
+        <StatRow label="Beds per 1,000 people"  value={info?.hospitalBeds} />
+        <StatRow label="Doctors per 1,000 ppl"  value={info?.physicians} />
         <StatRow label="Education Expenditure"  value={info?.educationExpenditure} />
         <StatRow label="School Life Expectancy" value={info?.schoolLifeExpectancy} />
         <StatRow label="Homicide Rate"          value={info?.homicideRate} />
