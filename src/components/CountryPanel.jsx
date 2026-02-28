@@ -1,6 +1,8 @@
 import { useState } from "react";
 import CountryBrief from "./CountryBrief";
 import ChatPanel from "./ChatPanel";
+import CountryInfo from "./CountryInfo";
+import { getCountryCode } from "../utils/countryCodes";
 import "./CountryPanel.css";
 
 const TRENDING_COUNT = 3;
@@ -62,27 +64,6 @@ function ArticleCard({ article, isTrending = false }) {
   );
 }
 
-const DATE_RANGE_OPTIONS = [
-  { value: '24h', label: 'Last 24 hours' },
-  { value: '3d',  label: 'Last 3 days' },
-  { value: '7d',  label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-];
-const TONE_OPTIONS = [
-  { value: 'all',      label: 'All tones' },
-  { value: 'positive', label: 'Positive' },
-  { value: 'neutral',  label: 'Neutral' },
-  { value: 'negative', label: 'Negative' },
-];
-const EVENT_TYPE_OPTIONS = [
-  { value: 'all',         label: 'All types' },
-  { value: 'Politics',    label: 'Politics' },
-  { value: 'Military',    label: 'Military / Conflict' },
-  { value: 'Economy',     label: 'Economy' },
-  { value: 'Diplomacy',   label: 'Diplomacy' },
-  { value: 'Environment', label: 'Environment' },
-  { value: 'Society',     label: 'Society' },
-];
 
 export default function CountryPanel({
   country,
@@ -94,8 +75,6 @@ export default function CountryPanel({
   isLoading = false,
   error = null,
   onRefresh,
-  eventFilters = { dateRange: '7d', tone: 'all', eventType: 'all' },
-  onFiltersChange,
   // Nemotron session props
   sessionStatus = 'idle',
   brief = null,
@@ -125,10 +104,6 @@ export default function CountryPanel({
     : sessionStatus === 'idle'    ? 'Initializing session...'
     : '';
 
-  function handleFilterChange(key, value) {
-    onFiltersChange?.({ ...eventFilters, [key]: value });
-  }
-
   return (
     <aside className="panel panel--open">
       <button className="panel__close" onClick={onClose} aria-label="Close panel">×</button>
@@ -146,10 +121,10 @@ export default function CountryPanel({
           Events
         </button>
         <button
-          className={`panel__tab ${activeTab === 'filters' ? 'panel__tab--active' : ''}`}
-          onClick={() => setActiveTab('filters')}
+          className={`panel__tab ${activeTab === 'info' ? 'panel__tab--active' : ''}`}
+          onClick={() => setActiveTab('info')}
         >
-          Filters
+          Info
         </button>
         <button
           className={`panel__tab ${activeTab === 'ai' ? 'panel__tab--active' : ''}`}
@@ -224,58 +199,12 @@ export default function CountryPanel({
           </>
         )}
 
-        {/* ── FILTERS TAB ── */}
-        {activeTab === 'filters' && (
-          <section className="panel__section filters-panel">
-            <h3 className="panel__section-title">Event Filters</h3>
-            <p className="filters-panel__hint">Filters re-fetch events from GDELT automatically.</p>
-
-            <div className="filters-panel__group">
-              <label className="filters-panel__label">Date Range</label>
-              <select
-                className="filters-panel__select"
-                value={eventFilters.dateRange}
-                onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-              >
-                {DATE_RANGE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filters-panel__group">
-              <label className="filters-panel__label">Tone</label>
-              <select
-                className="filters-panel__select"
-                value={eventFilters.tone}
-                onChange={(e) => handleFilterChange('tone', e.target.value)}
-              >
-                {TONE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filters-panel__group">
-              <label className="filters-panel__label">Event Type</label>
-              <select
-                className="filters-panel__select"
-                value={eventFilters.eventType}
-                onChange={(e) => handleFilterChange('eventType', e.target.value)}
-              >
-                {EVENT_TYPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              className="filters-panel__apply-btn"
-              onClick={onRefresh}
-            >
-              Refresh Events
-            </button>
-          </section>
+        {/* ── INFO TAB ── */}
+        {activeTab === 'info' && (
+          <CountryInfo
+            countryName={country.properties?.name}
+            countryCode={getCountryCode(country.properties?.name)}
+          />
         )}
 
         {/* ── AI ANALYSIS TAB ── */}
