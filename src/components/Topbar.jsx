@@ -60,23 +60,7 @@ export default function Topbar({
 
   return (
     <div className="topbar">
-      {/* View navigation tabs */}
-      <nav className="topbar__nav">
-        <button
-          className={`topbar__nav-btn${activeView === "globe" ? " topbar__nav-btn--active" : ""}`}
-          onClick={() => onViewChange("globe")}
-        >
-          Country Search
-        </button>
-        <button
-          className={`topbar__nav-btn${activeView === "warprotest" ? " topbar__nav-btn--active" : ""}`}
-          onClick={() => onViewChange("warprotest")}
-        >
-          War / Protest
-        </button>
-      </nav>
-
-      {/* Country search — only visible in globe view */}
+      {/* Country search — far left, only visible in globe view */}
       {activeView === "globe" && (
         <div className="topbar__box" ref={dropdownRef}>
           <input
@@ -106,6 +90,22 @@ export default function Topbar({
           )}
         </div>
       )}
+
+      {/* View navigation tabs */}
+      <nav className="topbar__nav">
+        <button
+          className={`topbar__nav-btn${activeView === "globe" ? " topbar__nav-btn--active" : ""}`}
+          onClick={() => onViewChange("globe")}
+        >
+          Country Search
+        </button>
+        <button
+          className={`topbar__nav-btn${activeView === "warprotest" ? " topbar__nav-btn--active" : ""}`}
+          onClick={() => onViewChange("warprotest")}
+        >
+          War / Protest
+        </button>
+      </nav>
 
       <button
         className={`topbar__markets-btn ${isMarketsOpen ? "topbar__markets-btn--active" : ""}`}
