@@ -13,9 +13,8 @@ import https from 'https';
 
 const GDELT_DOC_URL = 'https://api.gdeltproject.org/api/v2/doc/doc';
 const CACHE_TTL_MS = 8 * 60 * 1000; // 8 minutes
-const FETCH_TIMEOUT_MS = 10_000;     // 10 s per request
-const MIN_GDELT_INTERVAL_MS = 6_500; // Extra headroom to reduce 429 rate-limit hits
-const GDELT_RATE_LIMIT_BACKOFF_MS = 8_000;
+const FETCH_TIMEOUT_MS = 7_000;      // 7 s per request — fail fast rather than hang
+const MIN_GDELT_INTERVAL_MS = 2_000; // 2 s between requests
 const CACHE_SCHEMA_VERSION = 'v4-country-topic-balanced';
 
 // In-memory cache: key → { articles, toneSeries, expiresAt }
@@ -349,49 +348,45 @@ export async function fetchCountryEvents(countryCode, countryName, opts = {}) {
   const cacheKey = `${CACHE_SCHEMA_VERSION}:${normalizeKey(countryName || countryCode)}:${dateRange}`;
   const countryKey = `${CACHE_SCHEMA_VERSION}:${normalizeKey(countryName || countryCode)}`;
   const cached = _cache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    const filtered = applyFilters(cached.articles, tone, eventType);
-    return { articles: filtered, toneSeries: cached.toneSeries, error: null };
-  }
-  const stale = cached || null;
+  const timespan = dateRangeToTimespan(dateRange);
 
+  // ── Fresh cache: return immediately ──────────────────────────
+  if (cached && cached.expiresAt > Date.now()) {
+    return { articles: applyFilters(cached.articles, tone, eventType), toneSeries: cached.toneSeries, error: null };
+  }
+
+  // ── Stale cache: return immediately and refresh in background ─
+  if (cached?.articles?.length > 0) {
+    if (!_inflight.has(cacheKey)) {
+      const bgPromise = fetchCountryEventsBase(countryCode, countryName, {
+        timespan, eventType: 'all', maxRecords, cacheKey,
+      });
+      _inflight.set(cacheKey, bgPromise);
+      bgPromise.catch(() => {}); // silently update cache in background
+    }
+    return { articles: applyFilters(cached.articles, tone, eventType), toneSeries: cached.toneSeries, error: null };
+  }
+
+  // ── No cache: must wait for a live fetch ──────────────────────
   let basePromise = _inflight.get(cacheKey);
   if (!basePromise) {
-    const timespan = dateRangeToTimespan(dateRange);
     basePromise = fetchCountryEventsBase(countryCode, countryName, {
-      timespan,
-      eventType: 'all',
-      maxRecords,
-      cacheKey,
+      timespan, eventType: 'all', maxRecords, cacheKey,
     });
     _inflight.set(cacheKey, basePromise);
   }
 
   const base = await basePromise;
-  if (base.error && stale && stale.articles?.length) {
-    const filteredStale = applyFilters(stale.articles, tone, eventType);
-    return {
-      articles: filteredStale,
-      toneSeries: stale.toneSeries || [],
-      error: 'Using cached events because live fetch timed out.',
-    };
-  }
-  if (base.error && !stale) {
+  if (base.error) {
     const last = _lastSuccessByCountry.get(countryKey);
     if (last?.articles?.length) {
-      const filteredLast = applyFilters(last.articles, tone, eventType);
       return {
-        articles: filteredLast,
+        articles: applyFilters(last.articles, tone, eventType),
         toneSeries: last.toneSeries || [],
         error: 'Using previously cached country events because live source is rate-limited.',
       };
     }
-    const message = normalizeLiveError(base.error);
-    return {
-      articles: [],
-      toneSeries: [],
-      error: message,
-    };
+    return { articles: [], toneSeries: [], error: normalizeLiveError(base.error) };
   }
   const filtered = applyFilters(base.articles, tone, eventType);
   if (filtered.length === 0 && eventType !== 'all' && base.articles?.length > 0) {
@@ -458,12 +453,9 @@ async function fetchGdeltArticles(countryCode, countryName, { timespan, eventTyp
 }
 
 async function fetchWithBackoffOn429(url) {
-  let res = await fetchWithTimeout(url);
-  if (res.status === 429) {
-    await sleep(GDELT_RATE_LIMIT_BACKOFF_MS);
-    res = await fetchWithTimeout(url);
-  }
-  return res;
+  // No retry — if GDELT rate-limits us, return immediately so the caller
+  // can serve stale/fallback data without burning extra seconds waiting.
+  return fetchWithTimeout(url);
 }
 
 function buildToneSeriesFromArticles(articles) {

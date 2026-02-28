@@ -75,9 +75,12 @@ app.use((err, _req, res, _next) => {
 });
 
 // ─── Start ─────────────────────────────────────────────────
+// Skip app.listen() when running as a Vercel serverless function.
+// Vercel sets process.env.VERCEL=1 automatically in its runtime.
 
-app.listen(config.port, () => {
-  console.log(`
+if (!process.env.VERCEL) {
+  app.listen(config.port, () => {
+    console.log(`
 ╔══════════════════════════════════════════════════╗
 ║           News Globe — Backend Server            ║
 ╠══════════════════════════════════════════════════╣
@@ -89,7 +92,8 @@ app.listen(config.port, () => {
 ║  NVIDIA:     ${(config.nvidiaApiKey ? 'configured' : 'MISSING').padEnd(35)}║
 ║  Groq key:   ${(config.groqApiKey ? 'configured' : 'MISSING').padEnd(35)}║
 ╚══════════════════════════════════════════════════╝
-  `);
-});
+    `);
+  });
+}
 
 export default app;

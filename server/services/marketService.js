@@ -2,8 +2,11 @@ import https from 'https';
 
 const STOOQ_QUOTE_URL = 'https://stooq.com/q/l/';
 const STOOQ_HIST_URL  = 'https://stooq.com/q/d/l/';
-const CACHE_TTL_MS    = 2 * 60 * 1000;  // 2 minutes
-const REQUEST_TIMEOUT = 10_000;
+const CACHE_TTL_MS       = 2 * 60 * 1000;  // 2 minutes
+const STALE_TTL_MS       = 30 * 60 * 1000; // serve stale data up to 30 min on error
+const REQUEST_TIMEOUT    = 12_000;
+const BATCH_SIZE         = 3;              // requests per batch to avoid connection refusals
+const BATCH_DELAY_MS     = 300;            // ms between batches
 
 const SYMBOLS = [
   { stooq: '^spx',   name: 'S&P 500',    region: 'United States' },
@@ -21,8 +24,10 @@ const SYMBOLS = [
 // Use the Stooq symbol as the public key so the rest of the code has one ID.
 const asPublicSymbol = (stooq) => stooq.toUpperCase();
 
-let _snapshotCache = null;
-let _historyCache  = null;
+let _snapshotCache     = null;
+let _historyCache      = null;
+let _lastGoodSnapshot  = null; // stale fallback — survives errors
+let _lastGoodHistory   = null;
 
 // ─── Public API (same signatures as before) ───────────────────
 
@@ -32,21 +37,27 @@ export async function fetchGlobalMarketSnapshot() {
   }
 
   try {
-    const rows = await Promise.all(SYMBOLS.map(fetchStooqQuote));
+    const settled = await fetchInBatches(SYMBOLS, BATCH_SIZE, fetchStooqQuote, BATCH_DELAY_MS);
 
-    const quotes = rows.map((row, i) => {
-      const meta = SYMBOLS[i];
-      return {
-        symbol:        asPublicSymbol(meta.stooq),
-        name:          meta.name,
-        region:        meta.region,
-        price:         row.close,
-        change:        row.change,
-        changePercent: row.changePercent,
-        currency:      'USD',
-        marketTime:    row.date ? `${row.date}T${row.time || '00:00:00'}Z` : null,
-      };
-    }).filter((q) => q.price > 0);
+    const quotes = settled
+      .map((r, i) => {
+        if (r.status !== 'fulfilled') return null;
+        const row  = r.value;
+        const meta = SYMBOLS[i];
+        return {
+          symbol:        asPublicSymbol(meta.stooq),
+          name:          meta.name,
+          region:        meta.region,
+          price:         row.close,
+          change:        row.change,
+          changePercent: row.changePercent,
+          currency:      'USD',
+          marketTime:    row.date ? `${row.date}T${row.time || '00:00:00'}Z` : null,
+        };
+      })
+      .filter((q) => q && q.price > 0);
+
+    if (quotes.length === 0) throw new Error('All symbol fetches failed');
 
     const payload = {
       source: 'stooq',
@@ -56,8 +67,13 @@ export async function fetchGlobalMarketSnapshot() {
     };
 
     _snapshotCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    _lastGoodSnapshot = payload;
     return payload;
   } catch (err) {
+    // Serve stale data if available rather than an error
+    if (_lastGoodSnapshot) {
+      return { ..._lastGoodSnapshot, stale: true };
+    }
     const payload = {
       source: 'error',
       lastUpdated: new Date().toISOString(),
@@ -75,8 +91,11 @@ export async function fetchGlobalMarketHistory() {
   }
 
   try {
-    const results = await Promise.allSettled(
-      SYMBOLS.map(({ stooq }) => fetchStooqHistory(stooq, 10))
+    const results = await fetchInBatches(
+      SYMBOLS.map(({ stooq }) => stooq),
+      BATCH_SIZE,
+      (stooq) => fetchStooqHistory(stooq, 10),
+      BATCH_DELAY_MS
     );
 
     const seriesBySymbol = {};
@@ -88,6 +107,8 @@ export async function fetchGlobalMarketHistory() {
       }
     }
 
+    if (Object.keys(seriesBySymbol).length === 0) throw new Error('All history fetches failed');
+
     const payload = {
       source: 'stooq',
       lastUpdated: new Date().toISOString(),
@@ -97,8 +118,12 @@ export async function fetchGlobalMarketHistory() {
     };
 
     _historyCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    _lastGoodHistory = payload;
     return payload;
   } catch (err) {
+    if (_lastGoodHistory) {
+      return { ..._lastGoodHistory, stale: true };
+    }
     const payload = {
       source: 'error',
       lastUpdated: new Date().toISOString(),
@@ -109,6 +134,21 @@ export async function fetchGlobalMarketHistory() {
     _historyCache = { payload, expiresAt: Date.now() + 15_000 };
     return payload;
   }
+}
+
+// ─── Batch fetcher — avoids simultaneous connection bursts ────
+
+async function fetchInBatches(items, batchSize, fn, delayMs) {
+  const results = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.allSettled(batch.map(fn));
+    results.push(...batchResults);
+    if (i + batchSize < items.length && delayMs > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return results;
 }
 
 // ─── Stooq helpers ────────────────────────────────────────────
