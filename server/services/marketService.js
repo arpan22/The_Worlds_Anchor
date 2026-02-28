@@ -1,84 +1,70 @@
 import https from 'https';
-import { config } from '../config/index.js';
 
-const YAHOO_QUOTE_URL = 'https://query1.finance.yahoo.com/v7/finance/quote';
-const YAHOO_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
-const FMP_QUOTE_URL = 'https://financialmodelingprep.com/api/v3/quote';
-const LIVEINDEX_URL = 'https://liveindex.org/';
-const CACHE_TTL_MS = 2 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 10_000;
+const STOOQ_QUOTE_URL = 'https://stooq.com/q/l/';
+const STOOQ_HIST_URL  = 'https://stooq.com/q/d/l/';
+const CACHE_TTL_MS    = 2 * 60 * 1000;  // 2 minutes
+const REQUEST_TIMEOUT = 10_000;
 
 const SYMBOLS = [
-  { symbol: '^GSPC', name: 'S&P 500', region: 'United States' },
-  { symbol: '^DJI', name: 'Dow Jones', region: 'United States' },
-  { symbol: '^IXIC', name: 'NASDAQ', region: 'United States' },
-  { symbol: '^FTSE', name: 'FTSE 100', region: 'United Kingdom' },
-  { symbol: '^GDAXI', name: 'DAX', region: 'Germany' },
-  { symbol: '^FCHI', name: 'CAC 40', region: 'France' },
-  { symbol: '^N225', name: 'Nikkei 225', region: 'Japan' },
-  { symbol: '^HSI', name: 'Hang Seng', region: 'Hong Kong' },
-  { symbol: '^STOXX50E', name: 'Euro Stoxx 50', region: 'Europe' },
-  { symbol: '^AXJO', name: 'ASX 200', region: 'Australia' },
+  { stooq: '^spx',   name: 'S&P 500',    region: 'United States' },
+  { stooq: '^dji',   name: 'Dow Jones',  region: 'United States' },
+  { stooq: '^ndq',   name: 'NASDAQ',     region: 'United States' },
+  { stooq: '^ukx',   name: 'FTSE 100',   region: 'United Kingdom' },
+  { stooq: '^dax',   name: 'DAX',        region: 'Germany' },
+  { stooq: '^cac',   name: 'CAC 40',     region: 'France' },
+  { stooq: '^nkx',   name: 'Nikkei 225', region: 'Japan' },
+  { stooq: '^hsi',   name: 'Hang Seng',  region: 'Hong Kong' },
+  { stooq: '^ibex',  name: 'IBEX 35',    region: 'Spain' },
+  { stooq: '^kospi', name: 'KOSPI',      region: 'South Korea' },
 ];
 
-const FMP_SYMBOL_MAP = {
-  '^GSPC': '^GSPC',
-  '^DJI': '^DJI',
-  '^IXIC': '^IXIC',
-  '^FTSE': '^FTSE',
-  '^GDAXI': '^GDAXI',
-  '^FCHI': '^FCHI',
-  '^N225': '^N225',
-  '^HSI': '^HSI',
-  '^STOXX50E': '^STOXX50E',
-  '^AXJO': '^AXJO',
-};
+// Use the Stooq symbol as the public key so the rest of the code has one ID.
+const asPublicSymbol = (stooq) => stooq.toUpperCase();
 
-const FALLBACK_QUOTES = [
-  { symbol: '^GSPC', name: 'S&P 500', region: 'United States', price: 0, change: 0, changePercent: 0, currency: 'USD' },
-  { symbol: '^DJI', name: 'Dow Jones', region: 'United States', price: 0, change: 0, changePercent: 0, currency: 'USD' },
-  { symbol: '^IXIC', name: 'NASDAQ', region: 'United States', price: 0, change: 0, changePercent: 0, currency: 'USD' },
-  { symbol: '^FTSE', name: 'FTSE 100', region: 'United Kingdom', price: 0, change: 0, changePercent: 0, currency: 'GBP' },
-  { symbol: '^GDAXI', name: 'DAX', region: 'Germany', price: 0, change: 0, changePercent: 0, currency: 'EUR' },
-  { symbol: '^N225', name: 'Nikkei 225', region: 'Japan', price: 0, change: 0, changePercent: 0, currency: 'JPY' },
-];
+let _snapshotCache = null;
+let _historyCache  = null;
 
-let _cache = null;
-let _historyCache = null;
+// ─── Public API (same signatures as before) ───────────────────
 
 export async function fetchGlobalMarketSnapshot() {
-  if (_cache && _cache.expiresAt > Date.now()) {
-    return _cache.payload;
+  if (_snapshotCache && _snapshotCache.expiresAt > Date.now()) {
+    return _snapshotCache.payload;
   }
 
   try {
-    const yahoo = await tryYahooProvider();
-    if (yahoo) {
-      _cache = { payload: yahoo, expiresAt: Date.now() + CACHE_TTL_MS };
-      return yahoo;
-    }
+    const rows = await Promise.all(SYMBOLS.map(fetchStooqQuote));
 
-    const fmp = await tryFmpProvider();
-    if (fmp) {
-      _cache = { payload: fmp, expiresAt: Date.now() + CACHE_TTL_MS };
-      return fmp;
-    }
+    const quotes = rows.map((row, i) => {
+      const meta = SYMBOLS[i];
+      return {
+        symbol:        asPublicSymbol(meta.stooq),
+        name:          meta.name,
+        region:        meta.region,
+        price:         row.close,
+        change:        row.change,
+        changePercent: row.changePercent,
+        currency:      'USD',
+        marketTime:    row.date ? `${row.date}T${row.time || '00:00:00'}Z` : null,
+      };
+    }).filter((q) => q.price > 0);
 
-    const liveIndex = await tryLiveIndexProvider();
-    if (liveIndex) {
-      _cache = { payload: liveIndex, expiresAt: Date.now() + CACHE_TTL_MS };
-      return liveIndex;
-    }
+    const payload = {
+      source: 'stooq',
+      lastUpdated: new Date().toISOString(),
+      quotes,
+      error: null,
+    };
 
-    throw new Error('all providers unavailable');
+    _snapshotCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    return payload;
   } catch (err) {
     const payload = {
-      source: 'fallback',
+      source: 'error',
       lastUpdated: new Date().toISOString(),
-      quotes: FALLBACK_QUOTES,
-      error: `Live market feed unavailable (${formatError(err)}). Showing fallback watchlist.`,
+      quotes: [],
+      error: `Market data unavailable: ${err.message}`,
     };
-    _cache = { payload, expiresAt: Date.now() + 30_000 };
+    _snapshotCache = { payload, expiresAt: Date.now() + 15_000 };
     return payload;
   }
 }
@@ -89,369 +75,155 @@ export async function fetchGlobalMarketHistory() {
   }
 
   try {
-    const histories = await Promise.allSettled(
-      SYMBOLS.map(async (meta) => {
-        const series = await fetchYahooSeries(meta.symbol, '1d', '15m');
-        return { symbol: meta.symbol, name: meta.name, region: meta.region, series };
-      })
+    const results = await Promise.allSettled(
+      SYMBOLS.map(({ stooq }) => fetchStooqHistory(stooq, 10))
     );
 
     const seriesBySymbol = {};
-    let successCount = 0;
-    for (const item of histories) {
-      if (item.status !== 'fulfilled') continue;
-      const series = Array.isArray(item.value?.series) ? item.value.series : [];
-      if (series.length === 0) continue;
-      seriesBySymbol[item.value.symbol] = series;
-      successCount += 1;
-    }
-
-    if (successCount === 0) {
-      throw new Error('no intraday series available');
-    }
-
-    // Fill missing symbols from current snapshot so one failed symbol doesn't
-    // collapse the whole chart into fallback mode.
-    if (successCount < SYMBOLS.length) {
-      const snapshot = await fetchGlobalMarketSnapshot();
-      const now = new Date();
-      const start = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-      for (const q of snapshot.quotes || []) {
-        if (seriesBySymbol[q.symbol]) continue;
-        const currentPrice = toNumber(q.price, 0);
-        const absChange = toNumber(q.change, 0);
-        const baseline = currentPrice - absChange;
-        seriesBySymbol[q.symbol] = [
-          { time: start.toISOString(), price: baseline },
-          { time: now.toISOString(), price: currentPrice },
-        ];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      const sym = asPublicSymbol(SYMBOLS[i].stooq);
+      if (r.status === 'fulfilled' && r.value.length > 0) {
+        seriesBySymbol[sym] = r.value;
       }
     }
 
     const payload = {
-      source: 'yahoo-chart',
+      source: 'stooq',
       lastUpdated: new Date().toISOString(),
       seriesBySymbol,
-      symbols: SYMBOLS,
-      error: successCount < SYMBOLS.length
-        ? 'Some indices use derived fallback points because intraday history was unavailable.'
-        : null,
+      symbols: SYMBOLS.map((m) => ({ ...m, symbol: asPublicSymbol(m.stooq) })),
+      error: null,
     };
 
     _historyCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
     return payload;
   } catch (err) {
-    const snapshot = await fetchGlobalMarketSnapshot();
-    const now = new Date();
-    const start = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-    const seriesBySymbol = {};
-
-    for (const q of snapshot.quotes || []) {
-      const currentPrice = toNumber(q.price, 0);
-      const absChange = toNumber(q.change, 0);
-      const baseline = currentPrice - absChange;
-      seriesBySymbol[q.symbol] = [
-        { time: start.toISOString(), price: baseline },
-        { time: now.toISOString(), price: currentPrice },
-      ];
-    }
-
     const payload = {
-      source: 'snapshot-derived',
+      source: 'error',
       lastUpdated: new Date().toISOString(),
-      seriesBySymbol,
-      symbols: SYMBOLS,
-      error: `Historical feed unavailable (${formatError(err)}). Using 24h derived baseline.`,
+      seriesBySymbol: {},
+      symbols: [],
+      error: `History unavailable: ${err.message}`,
     };
-    _historyCache = { payload, expiresAt: Date.now() + 60_000 };
+    _historyCache = { payload, expiresAt: Date.now() + 15_000 };
     return payload;
   }
 }
 
-async function tryLiveIndexProvider() {
-  try {
-    const { statusCode, body } = await httpGet(LIVEINDEX_URL, REQUEST_TIMEOUT_MS, {
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'User-Agent': 'News-Globe/1.0 (+https://localhost)',
-    });
-    if (statusCode < 200 || statusCode >= 300) return null;
+// ─── Stooq helpers ────────────────────────────────────────────
 
-    const parsedRows = extractRowsFromHtmlTable(body);
-    if (parsedRows.length === 0) return null;
+async function fetchStooqQuote(meta) {
+  // Fetch last 5 trading days so we always have a prev-close even over weekends.
+  const d2 = stooqDate(new Date());
+  const d1 = stooqDate(daysAgo(14));
 
-    const aliasMap = new Map([
-      ['s&p 500', '^GSPC'],
-      ['dow jones', '^DJI'],
-      ['nasdaq', '^IXIC'],
-      ['ftse 100', '^FTSE'],
-      ['dax', '^GDAXI'],
-      ['cac 40', '^FCHI'],
-      ['nikkei 225', '^N225'],
-      ['hang seng', '^HSI'],
-      ['euro stoxx 50', '^STOXX50E'],
-      ['asx 200', '^AXJO'],
-    ]);
+  const url = `${STOOQ_HIST_URL}?s=${encodeURIComponent(meta.stooq)}&d1=${d1}&d2=${d2}&i=d&f=sd2t2ohlcv&h&e=csv`;
+  const csv = await httpGetText(url, REQUEST_TIMEOUT);
+  const rows = parseCsv(csv);
 
-    const rowsBySymbol = new Map();
-    for (const row of parsedRows) {
-      const name = String(row.name || '').toLowerCase();
-      let symbol = null;
-      for (const [key, mapped] of aliasMap.entries()) {
-        if (name.includes(key)) {
-          symbol = mapped;
-          break;
-        }
-      }
-      if (!symbol) continue;
-      rowsBySymbol.set(symbol, row);
-    }
+  if (rows.length === 0) return { close: 0, change: 0, changePercent: 0, date: null, time: null };
 
-    const quotes = SYMBOLS.map((meta) => {
-      const row = rowsBySymbol.get(meta.symbol);
-      return {
-        symbol: meta.symbol,
-        name: meta.name,
-        region: meta.region,
-        price: row ? toNumber(row.price, 0) : 0,
-        change: row ? toNumber(row.change, 0) : 0,
-        changePercent: row ? toNumber(row.changePercent, 0) : 0,
-        currency: 'USD',
-        marketTime: null,
-      };
-    });
+  const last = rows[rows.length - 1];
+  const prev = rows.length > 1 ? rows[rows.length - 2] : null;
 
-    const hasNonZero = quotes.some((q) => Number(q.price) > 0);
-    if (!hasNonZero) return null;
-    if (!quotesPassSanityChecks(quotes)) return null;
+  const close = toNum(last.Close ?? last.close);
+  const prevClose = prev ? toNum(prev.Close ?? prev.close) : toNum(last.Open ?? last.open);
+  const change = prevClose > 0 ? close - prevClose : 0;
+  const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-    return {
-      source: 'liveindex',
-      lastUpdated: new Date().toISOString(),
-      quotes,
-      error: null,
-    };
-  } catch {
-    return null;
-  }
+  return {
+    close,
+    change,
+    changePercent,
+    date: last.Date ?? last.date ?? null,
+    time: last.Time ?? last.time ?? null,
+  };
 }
 
-async function tryYahooProvider() {
-  try {
-    const params = new URLSearchParams({ symbols: SYMBOLS.map((s) => s.symbol).join(',') });
-    const data = await httpGetJson(`${YAHOO_QUOTE_URL}?${params}`);
-    const results = Array.isArray(data?.quoteResponse?.result) ? data.quoteResponse.result : [];
-    if (results.length === 0) return null;
+async function fetchStooqHistory(stooqSymbol, days = 10) {
+  const d2 = stooqDate(new Date());
+  const d1 = stooqDate(daysAgo(days * 2)); // fetch extra to ensure enough trading days
 
-    const bySymbol = new Map(results.map((item) => [String(item?.symbol || ''), item]));
-    const quotes = SYMBOLS.map((meta) => {
-      const q = bySymbol.get(meta.symbol) || {};
-      return {
-        symbol: meta.symbol,
-        name: meta.name,
-        region: meta.region,
-        price: toNumber(q.regularMarketPrice),
-        change: toNumber(q.regularMarketChange),
-        changePercent: toNumber(q.regularMarketChangePercent),
-        currency: q.currency || 'USD',
-        marketTime: q.regularMarketTime ? new Date(q.regularMarketTime * 1000).toISOString() : null,
-      };
-    });
+  const url = `${STOOQ_HIST_URL}?s=${encodeURIComponent(stooqSymbol)}&d1=${d1}&d2=${d2}&i=d&f=sd2t2ohlcv&h&e=csv`;
+  const csv = await httpGetText(url, REQUEST_TIMEOUT);
+  const rows = parseCsv(csv);
 
-    if (!quotesPassSanityChecks(quotes)) return null;
-
-    return {
-      source: 'yahoo',
-      lastUpdated: new Date().toISOString(),
-      quotes,
-      error: null,
-    };
-  } catch {
-    return null;
-  }
+  return rows
+    .slice(-days)
+    .map((r) => ({
+      time:  r.Date ?? r.date ?? '',
+      price: toNum(r.Close ?? r.close),
+    }))
+    .filter((p) => p.price > 0);
 }
 
-async function tryFmpProvider() {
-  try {
-    const mappedSymbols = SYMBOLS.map((s) => FMP_SYMBOL_MAP[s.symbol]).filter(Boolean);
-    const params = new URLSearchParams({
-      apikey: config.fmpApiKey || 'demo',
-    });
-    const symbolPath = mappedSymbols.map((s) => encodeURIComponent(s)).join(',');
-    const url = `${FMP_QUOTE_URL}/${symbolPath}?${params}`;
-    const data = await httpGetJson(url);
-    const list = Array.isArray(data) ? data : [];
-    if (list.length === 0) return null;
+// ─── Utilities ────────────────────────────────────────────────
 
-    const bySymbol = new Map(list.map((item) => [String(item?.symbol || ''), item]));
-    const quotes = SYMBOLS.map((meta) => {
-      const fmpSymbol = FMP_SYMBOL_MAP[meta.symbol];
-      const q = bySymbol.get(fmpSymbol) || {};
-      return {
-        symbol: meta.symbol,
-        name: meta.name,
-        region: meta.region,
-        price: toNumber(q.price),
-        change: toNumber(q.change),
-        changePercent: toNumber(q.changesPercentage),
-        currency: 'USD',
-        marketTime: q.timestamp ? new Date(q.timestamp * 1000).toISOString() : null,
-      };
-    });
-
-    if (!quotesPassSanityChecks(quotes)) return null;
-
-    return {
-      source: 'fmp',
-      lastUpdated: new Date().toISOString(),
-      quotes,
-      error: 'Primary live feed unavailable; using secondary provider.',
-    };
-  } catch {
-    return null;
-  }
+function stooqDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}${m}${day}`;
 }
 
-async function fetchYahooSeries(symbol, range, interval) {
-  const params = new URLSearchParams({
-    range,
-    interval,
-    includePrePost: 'false',
-    events: 'div,splits',
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+function toNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function parseCsv(text) {
+  const lines = String(text || '').trim().split('\n').filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map((h) => h.trim());
+  return lines.slice(1).map((line) => {
+    const vals = line.split(',');
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (vals[i] || '').trim(); });
+    return row;
+  }).filter((r) => {
+    // Skip rows where date is missing or Close is not a number
+    const close = toNum(r.Close ?? r.close, NaN);
+    return (r.Date || r.date) && Number.isFinite(close);
   });
-  const data = await httpGetJson(`${YAHOO_CHART_URL}/${encodeURIComponent(symbol)}?${params}`);
-  const result = data?.chart?.result?.[0];
-  const stamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
-  const closes = Array.isArray(result?.indicators?.quote?.[0]?.close)
-    ? result.indicators.quote[0].close
-    : [];
-
-  const series = [];
-  for (let i = 0; i < Math.min(stamps.length, closes.length); i += 1) {
-    const ts = Number(stamps[i]);
-    const price = Number(closes[i]);
-    if (!Number.isFinite(ts) || !Number.isFinite(price)) continue;
-    series.push({
-      time: new Date(ts * 1000).toISOString(),
-      price,
-    });
-  }
-  return series;
 }
 
-function toNumber(value, fallback = 0) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-}
-
-async function httpGetJson(url) {
-  const { statusCode, body } = await httpGet(url, REQUEST_TIMEOUT_MS, {
-    Accept: 'application/json',
-    'User-Agent': 'News-Globe/1.0 (+https://localhost)',
-  });
-
-  if (statusCode < 200 || statusCode >= 300) {
-    throw new Error(`HTTP ${statusCode}`);
-  }
-
-  try {
-    return JSON.parse(body);
-  } catch {
-    throw new Error('invalid json');
-  }
-}
-
-async function httpGet(url, timeoutMs, headers = {}) {
+function httpGetText(url, timeoutMs) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const req = https.request(
       {
         protocol: u.protocol,
-        hostname: u.hostname,
-        path: `${u.pathname}${u.search}`,
-        method: 'GET',
-        headers,
-        family: 4,
+        hostname:  u.hostname,
+        path:      `${u.pathname}${u.search}`,
+        method:    'GET',
+        family:    4,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; NewsGlobe/1.0)',
+          'Accept':     'text/csv,text/plain,*/*',
+        },
       },
       (res) => {
         let body = '';
         res.setEncoding('utf8');
         res.on('data', (chunk) => { body += chunk; });
-        res.on('end', () => resolve({ statusCode: res.statusCode || 0, body }));
+        res.on('end', () => {
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+          } else {
+            resolve(body);
+          }
+        });
       }
     );
-
-    req.setTimeout(timeoutMs, () => req.destroy(new Error('request timed out')));
+    req.setTimeout(timeoutMs, () => req.destroy(new Error('timeout')));
     req.on('error', reject);
     req.end();
   });
-}
-
-function formatError(err) {
-  if (!err) return 'network error';
-  if (typeof err.message === 'string') return err.message;
-  return 'network error';
-}
-
-function extractRowsFromHtmlTable(html) {
-  const rows = [];
-  const rowMatches = String(html || '').match(/<tr[\s\S]*?<\/tr>/gi) || [];
-  for (const rawRow of rowMatches) {
-    const cells = [];
-    const cellMatches = rawRow.match(/<t[dh][^>]*>[\s\S]*?<\/t[dh]>/gi) || [];
-    for (const rawCell of cellMatches) {
-      const clean = stripHtml(rawCell);
-      if (clean) cells.push(clean);
-    }
-    // Expected shape: [Index Name, Last, Change, Change% ...]
-    if (cells.length < 4) continue;
-    const maybePrice = parseMarketNumber(cells[1]);
-    if (!Number.isFinite(maybePrice)) continue;
-    rows.push({
-      name: cells[0],
-      price: maybePrice,
-      change: parseMarketNumber(cells[2]),
-      changePercent: parseMarketNumber(cells[3]),
-    });
-  }
-  return rows;
-}
-
-function stripHtml(value) {
-  return String(value || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&#37;/g, '%')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function parseMarketNumber(value) {
-  const cleaned = String(value || '')
-    .replace(/[%+,]/g, '')
-    .replace(/[^\d.\-]/g, '');
-  const num = Number.parseFloat(cleaned);
-  return Number.isFinite(num) ? num : NaN;
-}
-
-function quotesPassSanityChecks(quotes) {
-  const minBySymbol = {
-    '^GSPC': 1000,
-    '^DJI': 5000,
-    '^IXIC': 1000,
-    '^FTSE': 1000,
-    '^GDAXI': 1000,
-    '^FCHI': 1000,
-    '^N225': 1000,
-    '^HSI': 1000,
-    '^STOXX50E': 100,
-    '^AXJO': 100,
-  };
-  for (const q of quotes || []) {
-    const p = Number(q?.price);
-    if (!Number.isFinite(p) || p <= 0) continue;
-    const min = minBySymbol[q.symbol];
-    if (Number.isFinite(min) && p < min) return false;
-  }
-  return true;
 }
